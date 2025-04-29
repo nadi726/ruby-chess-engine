@@ -6,7 +6,7 @@ require 'ice_nine/core_ext/object'
 # Describes the movement pattern of a piece.
 # Does not account for special moves.
 # A single element consists of:
-# - deltas: movement offsets in [file, rank] format (x -> file, y -> rank)
+# - deltas: movement offsets in [file_delta, rank_delta] format (x -> file, y -> rank)
 # - repeat: a boolean indicating whether or not the piece can move until it encounters another piece.
 
 straight = [[0, 1], [0, -1], [1, 0], [-1, 0]]
