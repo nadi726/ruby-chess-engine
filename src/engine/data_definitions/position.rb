@@ -5,7 +5,7 @@
 # A Position may be invalid (e.g. off the board).
 # It is the responsibility of the engine to check validity using the valid? method when necessary.
 class Position
-  FILES = ('a'..'h').to_a.freeze
+  FILES = (:a..:h).to_a.freeze
   RANKS = (1..8).to_a.freeze
 
   attr_reader :file, :rank
