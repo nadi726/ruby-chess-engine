@@ -17,14 +17,12 @@ class Piece
   def moves
     return enum_for(:moves) unless block_given?
 
-    if @type == :pawn
-      [] # TODO
-    else
-      moves_deltas.each do |delta|
-        get_moves(delta) { |move| yield move } # rubocop:disable Style/ExplicitBlockArgument
-      end
+    moves_deltas.each do |delta|
+      get_moves(delta) { |move| yield move } # rubocop:disable Style/ExplicitBlockArgument
     end
   end
+
+  private
 
   def get_moves(delta)
     return enum_for(:get_moves, delta) unless block_given?
@@ -41,11 +39,18 @@ class Piece
     end
   end
 
-  def moves_deltas
-    MOVEMENT[@type][:deltas]
-  end
-
   def repeats_move?
     MOVEMENT[@type][:repeat]
+  end
+
+  def moves_deltas
+    @type == :pawn ? pawn_deltas : MOVEMENT[@type][:deltas]
+  end
+
+  def pawn_deltas
+    deltas = [[0, 1]]
+    deltas += [[0, 2]] if (@position.rank == 7 && @color == :black) || (@position.rank == 2 && @color == :white)
+
+    @color == :black ? deltas.map { |file, rank| [file, -rank] } : deltas
   end
 end
