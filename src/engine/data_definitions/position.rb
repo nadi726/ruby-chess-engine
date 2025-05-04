@@ -16,6 +16,8 @@ class Position
   end
 
   def self.from_index(row, col)
+    return new(nil, nil) unless (0..7).cover?(row) && (0..7).cover?(col)
+
     new(FILES[col], RANKS[row])
   end
 

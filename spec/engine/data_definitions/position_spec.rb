@@ -2,7 +2,7 @@
 
 require 'data_definitions/position'
 
-describe Position do # rubocop:disable Metrics/BlockLength
+describe Position do
   let(:a1) { Position.new(:a, 1) }
   let(:h8) { Position.new(:h, 8) }
 
@@ -46,7 +46,7 @@ describe Position do # rubocop:disable Metrics/BlockLength
     end
   end
 
-  describe '#offset' do # rubocop:disable Metrics/BlockLength
+  describe '#offset' do
     context 'for a1' do
       it 'offsets with (1, 0) to b1' do
         result = a1.offset(1, 0)
@@ -96,7 +96,7 @@ describe Position do # rubocop:disable Metrics/BlockLength
     end
   end
 
-  describe '#valid?' do # rubocop:disable Metrics/BlockLength
+  describe '#valid?' do
     context 'valid positions' do
       it 'returns true for a1' do
         expect(a1).to be_valid
