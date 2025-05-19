@@ -16,9 +16,9 @@ DrawEvent = Struct.new(:reason) # reason is optional(can be nil)
 ChoosePromotionEvent = Struct.new(:position)
 
 # Board manipulation events
-MovePieceEvent = Struct.new(:from, :to)
-RemovePieceEvent = Struct.new(:position)
-PromotePieceEvent = Struct.new(:position, :new_piece)
+MovePieceEvent = Struct.new(:from, :to, :piece) # piece is optional
+RemovePieceEvent = Struct.new(:position, :piece) # either is fine
+PromotePieceEvent = Struct.new(:from, :new_piece)
 
 # A CastleEvent describes the special move "Castling".
 # It has two forms:
@@ -28,6 +28,9 @@ class CastleEvent
   SIDES = %i[kingside queenside].freeze
   attr_reader :side, :king_to, :rook_from, :rook_to
 
+  # Must use a factry method
+  private_class_method :new
+
   def self.from_side(side)
     new(side, nil, nil, nil)
   end
@@ -35,6 +38,8 @@ class CastleEvent
   def self.with_positions(side, king_to, rook_from, rook_to)
     new(side, king_to, rook_from, rook_to)
   end
+
+  private
 
   def initialize(side, king_to, rook_from, rook_to)
     @side = side
@@ -50,6 +55,9 @@ end
 # - The full form, with the captured piece's position, is used by the engine to execute the move.
 class EnPassantEvent
   attr_reader :from, :to, :captured_piece_position
+
+  # Must use a factry method
+  private_class_method :new
 
   def self.basic(from, to)
     new(from, to, nil)
