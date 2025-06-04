@@ -96,6 +96,71 @@ describe Position do
     end
   end
 
+  describe '#distance' do
+    context 'no distance' do
+      it 'returns correct result for a1' do
+        result = a1.distance a1
+        expect(result).to eq([0, 0])
+      end
+
+      it 'returns correct result for h8' do
+        result = h8.distance h8
+        expect(result).to eq([0, 0])
+      end
+    end
+
+    context 'horizontal-only' do
+      b2 = Position.new(:b, 2)
+      d2 = Position.new(:d, 2)
+      h2 = Position.new(:h, 2)
+
+      it 'returns [2, 0] for b2 to d2' do
+        result = b2.distance d2
+        expect(result).to eq([2, 0])
+      end
+
+      it 'returns [2, 0] for d2 to b2' do
+        result = d2.distance b2
+        expect(result).to eq([2, 0])
+      end
+
+      it 'returns [6, 0] for b2 to h2' do
+        result = b2.distance h2
+        expect(result).to eq([6, 0])
+      end
+    end
+
+    context 'vertical-only' do
+      c1 = Position.new(:c, 1)
+      c5 = Position.new(:c, 5)
+
+      it 'returns [0, 4] for c1 to c5' do
+        result = c5.distance c1
+        expect(result).to eq([0, 4])
+      end
+    end
+
+    context 'both horizontal and diagonal' do
+      it 'returns [3, 3] for a1 to d4' do
+        d4 = Position.new(:d, 4)
+        result = a1.distance d4
+        expect(result).to eq([3, 3])
+      end
+
+      it 'returns [7, 7] for a1 to h8' do
+        result = a1.distance h8
+        expect(result).to eq([7, 7])
+      end
+
+      it 'returns [2, 5] for b3 to d8' do
+        b3 = Position.new(:b, 3)
+        d8 = Position.new(:d, 8)
+        result = b3.distance d8
+        expect(result).to eq([2, 5])
+      end
+    end
+  end
+
   describe '#valid?' do
     context 'valid positions' do
       it 'returns true for a1' do

@@ -5,9 +5,16 @@ require 'ice_nine/core_ext/object'
 
 # Describes the movement pattern of a piece.
 # Does not account for special moves.
-# A single element consists of:
-# - deltas: movement offsets in [file_delta, rank_delta] format (x -> file, y -> rank)
-# - repeat: a boolean indicating whether or not the piece can move until it encounters another piece.
+# Each entry consists of:
+# - moves: movement deltas in [file_delta, rank_delta] format (x -> file, y -> rank)
+# - repeat: a boolean indicating whether the piece can move repeatedly in a direction
+# For pawns (and optionally other pieces in variants), additional keys may be present:
+# - attacks: movement deltas for capturing (e.g., pawn diagonal captures)
+# - special_moves: an array of special move definitions.
+#   Each special move is a hash with:
+#     - path: an array of deltas (each [file_delta, rank_delta]) describing the move sequence
+#     - condition: a lambda that takes the piece and returns true if the move is allowed
+#         (e.g., only on the pawn's first move)
 
 straight = [[0, 1], [0, -1], [1, 0], [-1, 0]]
 diagonal = [[1, 1], [-1, 1], [1, -1], [-1, -1]]
@@ -17,10 +24,23 @@ knight = [
 ]
 
 MOVEMENT = {
-  king: { deltas: straight + diagonal, repeat: false },
-  queen: { deltas: straight + diagonal, repeat: true },
-  rook: { deltas: straight, repeat: true },
-  bishop: { deltas: diagonal, repeat: true },
-  knight: { deltas: knight, repeat: false },
-  pawn: { deltas: [[0, 1]], repeat: false } # simplified
+  king: { moves: straight + diagonal, repeat: false },
+  queen: { moves: straight + diagonal, repeat: true },
+  rook: { moves: straight, repeat: true },
+  bishop: { moves: diagonal, repeat: true },
+  knight: { moves: knight, repeat: false },
+  pawn: {
+    moves: [[0, 1]],
+    attacks: [[1, 1], [-1, 1]],
+    repeat: false,
+    special_moves: [
+      {
+        path: [[0, 1], [0, 2]],
+        condition: lambda { |piece|
+          (piece.color == :white && piece.position.rank == 2) ||
+            (piece.color == :black && piece.position.rank == 7)
+        }
+      }
+    ]
+  }
 }.deep_freeze
