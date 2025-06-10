@@ -97,3 +97,4 @@ end
 
 # add code to path for easier require
 $LOAD_PATH.unshift File.expand_path('../src/engine', __dir__)
+require 'debug'

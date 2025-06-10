@@ -54,22 +54,14 @@ end
 # - The basic form is used by the game interface to request castling.
 # - The full form, with the captured piece's position, is used by the engine to execute the move.
 class EnPassantEvent
-  attr_reader :from, :to, :captured_piece_position
+  attr_reader :from, :to
 
-  # Must use a factry method
-  private_class_method :new
-
-  def self.basic(from, to)
-    new(from, to, nil)
-  end
-
-  def self.with_capture(from, to, captured_piece_position)
-    new(from, to, captured_piece_position)
-  end
-
-  def initialize(from, to, captured_piece_position)
+  def initialize(from, to)
     @from = from
     @to = to
-    @captured_piece_position = captured_piece_position
+  end
+
+  def captured_piece_position
+    Position.new(to.file, from.rank)
   end
 end
