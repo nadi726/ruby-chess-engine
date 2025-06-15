@@ -1,46 +1,31 @@
 # frozen_string_literal: true
 
-# This file defines various events representing changes and actions in the game.
-# It includes board manipulation events, special moves (e.g., castling, en passant), game state changes (e.g., check),
-# and special input events (e.g., promotion).
-# These events are used by the game engine to manage and execute game logic,
-# and by the game interface to track what has occurred and determine the necessary actions,
-# such as in the case of ChoosePromotionEvent.
+# Events represent game actions or state changes.
+# They are produced by the parser (user intent) and by the engine (execution outcome).
+# Each event is self-contained and immutable after creation.
 
-# Game state change events
-CheckEvent = Struct.new(:color)
-CheckmateEvent = Struct.new(:color)
-DrawEvent = Struct.new(:reason) # reason is optional(can be nil)
+########## Action Events (can trigger rule processing)
 
-# Special input events
-ChoosePromotionEvent = Struct.new(:position)
+# Move a piece from one square to another.
+# Optionally includes the moving piece (usually added by engine).
+MovePieceEvent = Struct.new(:from, :to, :piece)
 
-# Board manipulation events
-MovePieceEvent = Struct.new(:from, :to, :piece) # piece is optional
-RemovePieceEvent = Struct.new(:position, :piece) # either is fine
-PromotePieceEvent = Struct.new(:from, :new_piece)
-
-# A CastleEvent describes the special move "Castling".
-# It has two forms:
-# - The side-only form is used by the game interface to request castling.
-# - The full form, with piece positions, is used by the engine to execute the move.
+# Castling move.
+# Use `CastleEvent.request(side)` for parser-side creation,
+# and `CastleEvent.resolve(...)` for engine-side execution with positions.
 class CastleEvent
   SIDES = %i[kingside queenside].freeze
   attr_reader :side, :king_to, :rook_from, :rook_to
 
-  # Must use a factry method
-  private_class_method :new
-
-  def self.from_side(side)
+  def self.request(side)
     new(side, nil, nil, nil)
   end
 
-  def self.with_positions(side, king_to, rook_from, rook_to)
+  def self.resolve(side, king_to, rook_from, rook_to)
     new(side, king_to, rook_from, rook_to)
   end
 
-  private
-
+  private_class_method :new
   def initialize(side, king_to, rook_from, rook_to)
     @side = side
     @king_to = king_to
@@ -49,10 +34,8 @@ class CastleEvent
   end
 end
 
-# A EnPassantEvent describes the special move "En Passant".
-# It has two forms:
-# - The basic form is used by the game interface to request castling.
-# - The full form, with the captured piece's position, is used by the engine to execute the move.
+# En passant move (special pawn capture).
+# Captured position is derived, not stored directly.
 class EnPassantEvent
   attr_reader :from, :to
 
@@ -61,7 +44,25 @@ class EnPassantEvent
     @to = to
   end
 
-  def captured_piece_position
+  def captured_position
     Position.new(to.file, from.rank)
   end
 end
+
+# Promotion request: promote piece at to `new_piece`.
+PromotePieceEvent = Struct.new(:piece_type)
+
+########## State Events (supporting metadata or consequences)
+
+# Piece removal — e.g., for captures.
+# Either position or piece (or both) can be specified.
+RemovePieceEvent = Struct.new(:position, :piece)
+
+# A player is in check.
+CheckEvent = Struct.new(:color)
+
+# A player is checkmated.
+CheckmateEvent = Struct.new(:color)
+
+# Game is drawn for a given reason (e.g., stalemate, repetition).
+DrawEvent = Struct.new(:reason)

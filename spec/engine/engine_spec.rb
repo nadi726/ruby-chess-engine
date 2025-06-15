@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'engine'
 require 'game_state'
 require 'data_definitions/events'

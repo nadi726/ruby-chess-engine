@@ -8,7 +8,6 @@ require_relative 'data_definitions/events'
 class EventHandler
   EVENT_HANDLERS = {
     MovePieceEvent => :handle_move_piece,
-    PromotePieceEvent => :handle_promotion,
     CastleEvent => :handle_castling,
     EnPassantEvent => :handle_en_passant
   }.freeze
@@ -23,7 +22,7 @@ class EventHandler
   # Upon an unsuccessful result:
   #   { success: false, error: 'message' }
   def handle_events(primary_event, extras)
-    handler = EVENT_HANDLERS.fetch(primary_event.class, nil)
+    handler = EVENT_HANDLERS[primary_event.class]
     return invalid_result("Unknown event: #{primary_event}") unless handler
 
     result = send(handler, primary_event, extras)
@@ -34,12 +33,6 @@ class EventHandler
 
   def handle_move_piece(move_event, extras)
     MoveEventHandler.new(@state, move_event, extras).handle
-  end
-
-  def handle_promotion(promotion_event, extras)
-    # TODO
-    puts 'Promote piece'
-    valid_result([promotion_event, *extras])
   end
 
   def handle_castling(castle_event, extras)
@@ -54,7 +47,7 @@ class EventHandler
 
   def handle_extra_events(events, result) # rubocop:disable Metrics/MethodLength
     return result
-    return result unless result[:success]
+    return result unless result[:success] # rubocop:disable Lint/UnreachableCode
 
     events.each do |event|
       case event
@@ -77,7 +70,7 @@ class EventHandler
   end
 
   def invalid_result(message = '')
-    { success: false, message: message }
+    { success: false, error: message }
   end
 end
 
@@ -88,15 +81,13 @@ class MoveEventHandler
   def initialize(state, main, extras)
     @state = state
     @from_piece = @state.piece_at(main.from)
-    @main = MovePieceEvent.new(main.from, main.to, @from_piece) # the primary event this handler processes
-    @extras = extras # optional related events (e.g. RemovePieceEvent)
+    @main = normalize_move(main)
+    @extras = extras
   end
 
   def handle
-    return invalid_result unless from_piece
-
+    return invalid_result unless move_valid?
     return handle_move_only unless valid_remove_piece_event?
-
     return handle_move_pawn if from_piece.type == :pawn
 
     handle_move_and_remove
@@ -128,8 +119,13 @@ class MoveEventHandler
     valid_result([main, remove_piece_event])
   end
 
-  def remove_piece_event
-    RemovePieceEvent.new(main.to, to_piece)
+  def normalize_move(event)
+    MovePieceEvent.new(event.from, event.to, from_piece)
+  end
+
+  def move_valid?
+    event_piece = main&.piece
+    (event_piece.nil? || event_piece == from_piece) && from_piece
   end
 
   def valid_remove_piece_event?
@@ -138,6 +134,10 @@ class MoveEventHandler
 
     [nil, main.to].include?(event.position) &&
       [nil, to_piece].include?(event.piece)
+  end
+
+  def remove_piece_event
+    RemovePieceEvent.new(main.to, to_piece)
   end
 
   # Always use the to_piece method to access the memoized value.

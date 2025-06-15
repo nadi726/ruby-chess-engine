@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'event_handlers'
 require 'game_state'
 require 'data_definitions/events'
@@ -365,7 +367,8 @@ RSpec.describe EventHandler do
         it 'rejects en passant if last move was not a double-step pawn move' do
           # Override move history with a 1-step move
           complex_state.instance_variable_set(:@move_history, [
-                                                [MovePieceEvent.new(Position.new(:d, 6), Position.new(:d, 5), Piece.new(:black, :pawn, Position.new(:d, 5)))]
+                                                [MovePieceEvent.new(Position.new(:d, 6), Position.new(:d, 5),
+                                                                    Piece.new(:black, :pawn, Position.new(:d, 5)))]
                                               ])
 
           event = EnPassantEvent.new(Position.new(:e, 5), Position.new(:d, 6))
