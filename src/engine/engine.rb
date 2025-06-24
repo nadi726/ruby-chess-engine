@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require_relative 'game_state'
+# Core components
+require_relative 'game_state/game_state'
+require_relative 'event_handlers/init'
 require_relative 'parser'
-require_relative 'event_handlers'
-require_relative 'data_definitions/events'
 
 # Handles the game.
 # - Keeps track of the state of the game and the pieces on the board

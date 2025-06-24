@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative 'data_definitions/piece'
-require_relative 'data_definitions/position'
+require_relative '../data_definitions/piece'
+require_relative '../data_definitions/position'
 require 'ice_nine'
 require 'ice_nine/core_ext/object'
 

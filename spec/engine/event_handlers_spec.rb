@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'event_handlers'
-require 'game_state'
+require 'event_handlers/init'
+require 'game_state/game_state'
 require 'data_definitions/events'
 require 'data_definitions/position'
 

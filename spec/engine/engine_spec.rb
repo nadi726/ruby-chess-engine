@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'engine'
-require 'game_state'
+require 'game_state/game_state'
 require 'data_definitions/events'
 require 'data_definitions/position'
 
