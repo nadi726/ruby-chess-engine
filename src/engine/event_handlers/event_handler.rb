@@ -14,8 +14,8 @@ class EventHandler
     EnPassantEvent => :handle_en_passant
   }.freeze
 
-  def initialize(state)
-    @state = state
+  def initialize(query)
+    @query = query
   end
 
   # Returns a hash of one of 2 forms:
@@ -34,7 +34,7 @@ class EventHandler
   private
 
   def handle_move_piece(move_event, extras)
-    MoveEventHandler.new(@state, move_event, extras).handle
+    MoveEventHandler.new(@query, move_event, extras).handle
   end
 
   def handle_castling(castle_event, extras)
@@ -44,7 +44,7 @@ class EventHandler
   end
 
   def handle_en_passant(en_passant_event, _)
-    EnPassantEventHandler.new(@state, en_passant_event, []).handle
+    EnPassantEventHandler.new(@query, en_passant_event, []).handle
   end
 
   def handle_extra_events(events, result) # rubocop:disable Metrics/MethodLength

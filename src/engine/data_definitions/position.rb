@@ -66,4 +66,10 @@ class Position
   def hash
     [file, rank].hash
   end
+
+  # For Position[file, rank] syntax.
+  # Makes it clearer that this is a value object, similar to Data
+  def self.[](file, rank)
+    new(file, rank)
+  end
 end

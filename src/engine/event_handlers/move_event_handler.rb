@@ -1,14 +1,15 @@
 # frozen_string_literal: true
 
 require_relative '../data_definitions/events'
+require_relative 'en_passant_event_handler'
 
 # Event handler for MovePieceEvent
 class MoveEventHandler
-  attr_reader :state, :main, :extras, :from_piece
+  attr_reader :query, :main, :extras, :from_piece
 
-  def initialize(state, main, extras)
-    @state = state
-    @from_piece = @state.piece_at(main.from)
+  def initialize(query, main, extras)
+    @query = query
+    @from_piece = @query.board.get(main.from)
     @main = normalize_move(main)
     @extras = extras
   end
@@ -24,13 +25,13 @@ class MoveEventHandler
   private
 
   def handle_move_only
-    return valid_result([main]) if @state.piece_can_move?(main.from, main.to)
+    return valid_result([main]) if @query.piece_can_move?(main.from, main.to)
 
     invalid_result
   end
 
   def handle_move_and_remove
-    return invalid_result unless @state.piece_attacking?(main.from,
+    return invalid_result unless @query.piece_attacking?(main.from,
                                                          main.to) &&
                                  to_piece && valid_remove_piece_event?
 
@@ -38,17 +39,17 @@ class MoveEventHandler
   end
 
   def handle_move_pawn
-    en_passant_event_handler = EnPassantEventHandler.new(@state, EnPassantEvent.new(main.from, main.to), extras)
+    en_passant_event_handler = EnPassantEventHandler.new(@query, EnPassantEvent[main.from, main.to], extras)
     en_passant_result = en_passant_event_handler.handle
     return en_passant_result if en_passant_result[:success]
 
-    return invalid_result unless to_piece && @state.piece_attacking?(main.from, main.to)
+    return invalid_result unless to_piece && @query.piece_attacking?(main.from, main.to)
 
     valid_result([main, remove_piece_event])
   end
 
   def normalize_move(event)
-    MovePieceEvent.new(event.from, event.to, from_piece)
+    MovePieceEvent[event.from, event.to, from_piece]
   end
 
   def move_valid?
@@ -65,13 +66,13 @@ class MoveEventHandler
   end
 
   def remove_piece_event
-    RemovePieceEvent.new(main.to, to_piece)
+    RemovePieceEvent[main.to, to_piece]
   end
 
   # Always use the to_piece method to access the memoized value.
   # Do not access @to_piece directly to avoid uninitialized or stale values.
   def to_piece
-    @to_piece ||= state.piece_at(main.to)
+    @to_piece ||= query.board.get(main.to)
   end
 
   def valid_result(events)

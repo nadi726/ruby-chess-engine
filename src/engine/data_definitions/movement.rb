@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require 'ice_nine'
-require 'ice_nine/core_ext/object'
+require 'immutable'
 
 # Describes the movement pattern of a piece.
 # Does not account for special moves.
@@ -23,24 +22,26 @@ knight = [
   [2, -1], [1, -2], [-1, -2], [-2, -1]
 ]
 
-MOVEMENT = {
-  king: { moves: straight + diagonal, repeat: false },
-  queen: { moves: straight + diagonal, repeat: true },
-  rook: { moves: straight, repeat: true },
-  bishop: { moves: diagonal, repeat: true },
-  knight: { moves: knight, repeat: false },
-  pawn: {
-    moves: [[0, 1]],
-    attacks: [[1, 1], [-1, 1]],
-    repeat: false,
-    special_moves: [
-      {
-        path: [[0, 1], [0, 2]],
-        condition: lambda { |piece|
-          (piece.color == :white && piece.position.rank == 2) ||
-            (piece.color == :black && piece.position.rank == 7)
+MOVEMENT = Immutable.from(
+  {
+    king: { moves: straight + diagonal, repeat: false },
+    queen: { moves: straight + diagonal, repeat: true },
+    rook: { moves: straight, repeat: true },
+    bishop: { moves: diagonal, repeat: true },
+    knight: { moves: knight, repeat: false },
+    pawn: {
+      moves: [[0, 1]],
+      attacks: [[1, 1], [-1, 1]],
+      repeat: false,
+      special_moves: [
+        {
+          path: [[0, 1], [0, 2]],
+          condition: lambda { |piece, position|
+            (piece.color == :white && position.rank == 2) ||
+              (piece.color == :black && position.rank == 7)
+          }
         }
-      }
-    ]
+      ]
+    }
   }
-}.deep_freeze
+)

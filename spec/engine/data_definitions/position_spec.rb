@@ -3,8 +3,8 @@
 require 'data_definitions/position'
 
 describe Position do
-  let(:a1) { Position.new(:a, 1) }
-  let(:h8) { Position.new(:h, 8) }
+  let(:a1) { Position[:a, 1] }
+  let(:h8) { Position[:h, 8] }
 
   describe '#from_index' do
     it 'maps [0, 0] to a1' do
@@ -19,7 +19,7 @@ describe Position do
 
     it 'maps [3, 4] to e4' do
       result = Position.from_index(3, 4)
-      expect(result).to eq(Position.new(:e, 4))
+      expect(result).to eq(Position[:e, 4])
     end
 
     it 'returns an invalid position when out of bounds' do
@@ -40,7 +40,7 @@ describe Position do
     end
 
     it 'converts b6 to [5, 1]' do
-      b6 = Position.new(:b, 6)
+      b6 = Position[:b, 6]
       result = b6.to_a
       expect(result).to eq([5, 1])
     end
@@ -50,12 +50,12 @@ describe Position do
     context 'for a1' do
       it 'offsets with (1, 0) to b1' do
         result = a1.offset(1, 0)
-        expect(result).to eq(Position.new(:b, 1))
+        expect(result).to eq(Position[:b, 1])
       end
 
       it 'offsets with (0, 2) to a3' do
         result = a1.offset(0, 2)
-        expect(result).to eq(Position.new(:a, 3))
+        expect(result).to eq(Position[:a, 3])
       end
 
       it 'offsets with (7, 7) to h8' do
@@ -67,31 +67,31 @@ describe Position do
     context 'for h8' do
       it 'offsets with (-3, -2) to e6' do
         result = h8.offset(-3, -2)
-        expect(result).to eq(Position.new(:e, 6))
+        expect(result).to eq(Position[:e, 6])
       end
 
       it 'does not mutate the object' do
         h8.offset(-1, -1)
-        expect(h8).to eq(Position.new(:h, 8))
+        expect(h8).to eq(Position[:h, 8])
       end
     end
 
     context 'for d4' do
-      subject(:d4) { Position.new(:d, 4) }
+      subject(:d4) { Position[:d, 4] }
 
       it 'offsets with (1, 4) to e8' do
         result = d4.offset(1, 4)
-        expect(result).to eq(Position.new(:e, 8))
+        expect(result).to eq(Position[:e, 8])
       end
 
       it 'offsets with (-3, -3) to a1' do
         result = d4.offset(-3, -3)
-        expect(result).to eq(Position.new(:a, 1))
+        expect(result).to eq(Position[:a, 1])
       end
 
       it 'offsets with (-2, 3) to b7' do
         result = d4.offset(-2, 3)
-        expect(result).to eq(Position.new(:b, 7))
+        expect(result).to eq(Position[:b, 7])
       end
     end
   end
@@ -110,9 +110,9 @@ describe Position do
     end
 
     context 'horizontal-only' do
-      b2 = Position.new(:b, 2)
-      d2 = Position.new(:d, 2)
-      h2 = Position.new(:h, 2)
+      b2 = Position[:b, 2]
+      d2 = Position[:d, 2]
+      h2 = Position[:h, 2]
 
       it 'returns [2, 0] for b2 to d2' do
         result = b2.distance d2
@@ -131,8 +131,8 @@ describe Position do
     end
 
     context 'vertical-only' do
-      c1 = Position.new(:c, 1)
-      c5 = Position.new(:c, 5)
+      c1 = Position[:c, 1]
+      c5 = Position[:c, 5]
 
       it 'returns [0, 4] for c1 to c5' do
         result = c5.distance c1
@@ -142,7 +142,7 @@ describe Position do
 
     context 'both horizontal and diagonal' do
       it 'returns [3, 3] for a1 to d4' do
-        d4 = Position.new(:d, 4)
+        d4 = Position[:d, 4]
         result = a1.distance d4
         expect(result).to eq([3, 3])
       end
@@ -153,8 +153,8 @@ describe Position do
       end
 
       it 'returns [2, 5] for b3 to d8' do
-        b3 = Position.new(:b, 3)
-        d8 = Position.new(:d, 8)
+        b3 = Position[:b, 3]
+        d8 = Position[:d, 8]
         result = b3.distance d8
         expect(result).to eq([2, 5])
       end
@@ -172,39 +172,39 @@ describe Position do
       end
 
       it 'returns true for c7' do
-        c7 = Position.new(:c, 7)
+        c7 = Position[:c, 7]
         expect(c7).to be_valid
       end
     end
 
     context 'invalid positions' do
       it 'returns false for non-string file' do
-        pos = Position.new(4, 3)
+        pos = Position[4, 3]
         expect(pos).not_to be_valid
       end
 
       it 'returns false for non-letter file' do
-        pos = Position.new('$', 3)
+        pos = Position['$', 3]
         expect(pos).not_to be_valid
       end
 
       it 'returns false for too-high letter file' do
-        pos = Position.new(:i, 3)
+        pos = Position[:i, 3]
         expect(pos).not_to be_valid
       end
 
       it 'returns false for rank 0' do
-        pos = Position.new(:f, 0)
+        pos = Position[:f, 0]
         expect(pos).not_to be_valid
       end
 
       it 'returns false for negative rank' do
-        pos = Position.new(:f, -3)
+        pos = Position[:f, -3]
         expect(pos).not_to be_valid
       end
 
       it 'returns false for rank > 8' do
-        pos = Position.new(:f, 9)
+        pos = Position[:f, 9]
         expect(pos).not_to be_valid
       end
     end

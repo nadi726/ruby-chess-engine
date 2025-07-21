@@ -2,25 +2,23 @@
 
 require 'game_state/board'
 require 'data_definitions/position'
-
-# As Piece is not yet compatible with Board, since it is mutable with position
-PieceStub = Struct.new(:type, :color)
+require 'data_definitions/piece'
 
 RSpec.describe Board do
   let(:pieces) do
     [
       # Rank 1
-      PieceStub.new(:rook, :white), PieceStub.new(:knight, :white), PieceStub.new(:bishop, :white), PieceStub.new(:queen, :white),
-      PieceStub.new(:king, :white), PieceStub.new(:bishop, :white), PieceStub.new(:knight, :white), PieceStub.new(:rook, :white),
+      Piece[:white, :rook], Piece[:white, :knight], Piece[:white, :bishop], Piece[:white, :queen],
+      Piece[:white, :king], Piece[:white, :bishop], Piece[:white, :knight], Piece[:white, :rook],
       # Rank 2
-      *Array.new(8) { PieceStub.new(:pawn, :white) },
+      *Array.new(8) { Piece[:white, :pawn] },
       # Ranks 3-6 (empty)
       *Array.new(32),
       # Rank 7
-      *Array.new(8) { PieceStub.new(:pawn, :black) },
+      *Array.new(8) { Piece[:black, :pawn] },
       # Rank 8
-      PieceStub.new(:rook, :black), PieceStub.new(:knight, :black), PieceStub.new(:bishop, :black), PieceStub.new(:queen, :black),
-      PieceStub.new(:king, :black), PieceStub.new(:bishop, :black), PieceStub.new(:knight, :black), PieceStub.new(:rook, :black)
+      Piece[:black, :rook], Piece[:black, :knight], Piece[:black, :bishop], Piece[:black, :queen],
+      Piece[:black, :king], Piece[:black, :bishop], Piece[:black, :knight], Piece[:black, :rook]
     ]
   end
 
@@ -30,16 +28,16 @@ RSpec.describe Board do
   describe '#get' do
     context 'for valid positions' do
       [
-        [Position.new(:a, 8), PieceStub.new(:rook, :black)],
-        [Position.new(:d, 8), PieceStub.new(:queen, :black)],
-        [Position.new(:h, 8), PieceStub.new(:rook, :black)],
-        [Position.new(:d, 4), nil],
-        [Position.new(:f, 6), nil],
-        [Position.new(:b, 2), PieceStub.new(:pawn, :white)],
-        [Position.new(:h, 2), PieceStub.new(:pawn, :white)],
-        [Position.new(:a, 1), PieceStub.new(:rook, :white)],
-        [Position.new(:e, 1), PieceStub.new(:king, :white)],
-        [Position.new(:g, 1), PieceStub.new(:knight, :white)]
+        [Position[:a, 8], Piece[:black, :rook]],
+        [Position[:d, 8], Piece[:black, :queen]],
+        [Position[:h, 8], Piece[:black, :rook]],
+        [Position[:d, 4], nil],
+        [Position[:f, 6], nil],
+        [Position[:b, 2], Piece[:white, :pawn]],
+        [Position[:h, 2], Piece[:white, :pawn]],
+        [Position[:a, 1], Piece[:white, :rook]],
+        [Position[:e, 1], Piece[:white, :king]],
+        [Position[:g, 1], Piece[:white, :knight]]
       ].each do |position, expected_piece|
         it "returns the correct piece for #{position}" do
           expect(board.get(position)).to eq(expected_piece)
@@ -53,13 +51,13 @@ RSpec.describe Board do
       end
 
       it 'returns an error for position given, but invalid' do
-        expect { board.get(Position.new(:a, 12)) }.to raise_error(ArgumentError)
+        expect { board.get(Position[:a, 12]) }.to raise_error(ArgumentError)
       end
     end
   end
 
   describe '#insert' do
-    let(:piece) { PieceStub.new(:queen, :black) }
+    let(:piece) { Piece[:black, :queen] }
 
     context 'for incorrect positions' do
       it 'returns an error for no position given' do
@@ -67,21 +65,21 @@ RSpec.describe Board do
       end
 
       it 'returns an error for position given, but invalid' do
-        expect { board.insert(piece, Position.new(:bi, 7)) }.to raise_error(ArgumentError)
+        expect { board.insert(piece, Position[:bi, 7]) }.to raise_error(ArgumentError)
       end
 
       it 'returns an error for a valid but occupied position' do
-        expect { board.insert(piece, Position.new(:c, 1)) }.to raise_error(ArgumentError)
+        expect { board.insert(piece, Position[:c, 1]) }.to raise_error(ArgumentError)
       end
 
       it 'raises error when inserting twice at the same position' do
-        new_board = empty_board.insert(piece, Position.new(:e, 4))
-        expect { new_board.insert(PieceStub.new(:rook, :white), Position.new(:e, 4)) }.to raise_error(ArgumentError)
+        new_board = empty_board.insert(piece, Position[:e, 4])
+        expect { new_board.insert(Piece[:white, :rook], Position[:e, 4]) }.to raise_error(ArgumentError)
       end
 
       it 'rejects an object that does not respond to :type and :color' do
         dummy = Object.new
-        expect { empty_board.insert(dummy, Position.new(:e, 4)) }.to raise_error(ArgumentError)
+        expect { empty_board.insert(dummy, Position[:e, 4]) }.to raise_error(ArgumentError)
       end
     end
 
@@ -94,27 +92,27 @@ RSpec.describe Board do
       end
 
       it 'does not affect the rest of the board' do
-        new_board = empty_board.insert(piece, Position.new(:f, 4))
+        new_board = empty_board.insert(piece, Position[:f, 4])
         samples = parse_positions('a1 c8 e2 f5')
         values = samples.map { |pos| new_board.get(pos) }
         expect(values).to all(be_nil)
       end
 
       it 'does not mutate the original board' do
-        new_board = empty_board.insert(piece, Position.new(:e, 4))
-        expect(empty_board.get(Position.new(:e, 4))).to be_nil
-        expect(new_board.get(Position.new(:e, 4))).to eq(piece)
+        new_board = empty_board.insert(piece, Position[:e, 4])
+        expect(empty_board.get(Position[:e, 4])).to be_nil
+        expect(new_board.get(Position[:e, 4])).to eq(piece)
       end
     end
 
     context 'for valid arguments in a partially occupied board' do
       it 'inserts correct piece at empty square' do
-        new_board = board.insert(piece, Position.new(:d, 3))
-        expect(new_board.get(Position.new(:d, 3))).to eq(piece)
+        new_board = board.insert(piece, Position[:d, 3])
+        expect(new_board.get(Position[:d, 3])).to eq(piece)
       end
 
       it 'does not affect surrounding pieces' do
-        new_board = board.insert(piece, Position.new(:c, 6))
+        new_board = board.insert(piece, Position[:c, 6])
         positions = parse_positions('b7 c7 d7 b6 d6 b5 c5 d5')
         old_values = positions.map { |pos| board.get(pos) }
         new_values = positions.map { |pos| new_board.get(pos) }
@@ -122,14 +120,14 @@ RSpec.describe Board do
       end
 
       it 'works correctly for multiple inserts' do
-        board2 = board.insert(piece, Position.new(:c, 3))
-        board3 = board2.insert(PieceStub.new(:bishop, :white), Position.new(:h, 4))
-        board4 = board3.insert(PieceStub.new(:pawn, :black), Position.new(:g, 6))
+        board2 = board.insert(piece, Position[:c, 3])
+        board3 = board2.insert(Piece[:white, :bishop], Position[:h, 4])
+        board4 = board3.insert(Piece[:black, :pawn], Position[:g, 6])
 
         inserted = {
-          Position.new(:c, 3) => piece,
-          Position.new(:h, 4) => PieceStub.new(:bishop, :white),
-          Position.new(:g, 6) => PieceStub.new(:pawn, :black)
+          Position[:c, 3] => piece,
+          Position[:h, 4] => Piece[:white, :bishop],
+          Position[:g, 6] => Piece[:black, :pawn]
         }
 
         expect(inserted.all? { |pos, piece| board4.get(pos) == piece }).to be(true)
@@ -181,8 +179,8 @@ RSpec.describe Board do
       it 'returns correct piece and position pairs for the kings' do
         result = board.pieces_with_positions(type: :king)
         expect(result).to match_array([
-                                        [PieceStub.new(:king, :white), Position.new(:e, 1)],
-                                        [PieceStub.new(:king, :black), Position.new(:e, 8)]
+                                        [Piece[:white, :king], Position[:e, 1]],
+                                        [Piece[:black, :king], Position[:e, 8]]
                                       ])
       end
 
@@ -209,16 +207,16 @@ RSpec.describe Board do
       end
 
       it 'returns an error for position given, but invalid' do
-        expect { board.remove(Position.new(:c, -1)) }.to raise_error(ArgumentError)
+        expect { board.remove(Position[:c, -1]) }.to raise_error(ArgumentError)
       end
 
       it 'returns an error for a valid but unoccupied position' do
-        expect { board.remove(Position.new(:a, 4)) }.to raise_error(ArgumentError)
+        expect { board.remove(Position[:a, 4]) }.to raise_error(ArgumentError)
       end
 
       it 'raises error when removing twice from the same position' do
-        new_board = board.remove(Position.new(:e, 2))
-        expect { new_board.remove(Position.new(:e, 2)) }.to raise_error(ArgumentError)
+        new_board = board.remove(Position[:e, 2])
+        expect { new_board.remove(Position[:e, 2]) }.to raise_error(ArgumentError)
       end
     end
 
@@ -234,7 +232,7 @@ RSpec.describe Board do
       end
 
       it 'removes pieces at occupied positions when used consecutively' do
-        positions = [Position.new(:a, 2), Position.new(:g, 7), Position.new(:d, 8)]
+        positions = [Position[:a, 2], Position[:g, 7], Position[:d, 8]]
         result_board = board.remove(positions[0]).remove(positions[1]).remove(positions[2])
         results = positions.map { |pos| result_board.get(pos) }
         expect(results).to all(be_nil)
@@ -245,26 +243,26 @@ RSpec.describe Board do
   describe '#move' do
     context 'for invalid arguments' do
       it 'returns an error for an unoccupied starting position' do
-        expect { board.move(Position.new(:a, 4), Position.new(:b, 3)) }.to raise_error(ArgumentError)
+        expect { board.move(Position[:a, 4], Position[:b, 3]) }.to raise_error(ArgumentError)
       end
 
       it 'returns an error for an occupied target position' do
-        expect { board.move(Position.new(:c, 8), Position.new(:b, 7)) }.to raise_error(ArgumentError)
+        expect { board.move(Position[:c, 8], Position[:b, 7]) }.to raise_error(ArgumentError)
       end
 
       it 'returns an error for starting and tartget position being the same position' do
-        expect { board.move(Position.new(:f, 8), Position.new(:f, 8)) }.to raise_error(ArgumentError)
+        expect { board.move(Position[:f, 8], Position[:f, 8]) }.to raise_error(ArgumentError)
       end
 
       it 'returns an error for trying to move with the same coordinates twice' do
-        positions = [Position.new(:c, 8), Position.new(:b, 7)]
+        positions = [Position[:c, 8], Position[:b, 7]]
         expect { board.move(*positions).move(*positions) }.to raise_error(ArgumentError)
       end
     end
 
     context 'for valid arguments' do
       context 'moves each piece to an unoccupied position' do
-        let(:to) { Position.new(:f, 5) }
+        let(:to) { Position[:f, 5] }
         parse_positions('a1 b1 c1 e2 g2 b7 c7 f7 a8 d8 h8')
           .each do |from|
           it "moves the piece at #{from}" do
@@ -282,9 +280,9 @@ RSpec.describe Board do
       end
 
       it 'can move the same piece across multiple positions' do
-        board2 = board.move(Position.new(:b, 1), Position.new(:c, 3))
-        board3 = board2.move(Position.new(:c, 3), Position.new(:e, 4))
-        expect(board3.get(Position.new(:e, 4))).to eq(PieceStub.new(:knight, :white))
+        board2 = board.move(Position[:b, 1], Position[:c, 3])
+        board3 = board2.move(Position[:c, 3], Position[:e, 4])
+        expect(board3.get(Position[:e, 4])).to eq(Piece[:white, :knight])
       end
 
       it 'moves several pieces to new positions correctly' do
@@ -320,9 +318,9 @@ RSpec.describe Board do
     it 'inserting and then removing pieces leads back to empty positions' do
       positions = parse_positions('b4 d5 f6')
       pieces_to_insert = [
-        PieceStub.new(:knight, :white),
-        PieceStub.new(:queen, :black),
-        PieceStub.new(:bishop, :white)
+        Piece[:white, :knight],
+        Piece[:black, :queen],
+        Piece[:white, :bishop]
       ]
 
       board_with_pieces = positions.zip(pieces_to_insert).reduce(empty_board) do |b, (pos, piece)|

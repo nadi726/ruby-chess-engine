@@ -21,6 +21,25 @@ class Board
     new(array)
   end
 
+  # An empty board
+  def self.empty
+    from_flat_array(Array.new(SIZE * SIZE))
+  end
+
+  # A board with all pieces set up at their starting positions
+  def self.start
+    back_row = %i[rook knight bishop queen king bishop knight rook]
+    ranks = [
+      back_row.map { |t| Piece.new(:white, t) }, # Rank 1
+      Array.new(8) { Piece.new(:white, :pawn) }, # Rank 2
+      Array.new(4) { Array.new(8) }, # Ranks 3–6
+      Array.new(8) { Piece.new(:black, :pawn) }, # Rank 7
+      back_row.map { |t| Piece.new(:black, t) } # Rank 8
+    ]
+
+    from_flat_array(ranks.flatten)
+  end
+
   # Use only internally
   def initialize(array)
     @array = array
