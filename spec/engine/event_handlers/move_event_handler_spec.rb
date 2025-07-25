@@ -38,25 +38,25 @@ RSpec.describe MoveEventHandler do
     it 'returns valid result for 1-rank pawn move' do
       main = MovePieceEvent[Position[:d, 2], Position[:d, 3], nil]
       handler = MoveEventHandler.new(start_query, main, [])
-      expect(handler.handle).to be_a_successful_handler_result
+      expect(handler.process).to be_a_successful_handler_result
     end
 
     it 'returns valid result for 2-rank pawn move' do
       main = MovePieceEvent[Position[:f, 2], Position[:f, 4], nil]
       handler = MoveEventHandler.new(start_query, main, [])
-      expect(handler.handle).to be_a_successful_handler_result
+      expect(handler.process).to be_a_successful_handler_result
     end
 
     it 'returns invalid result for 3-rank pawn move' do
       main = MovePieceEvent[Position[:g, 2], Position[:f, 5], nil]
       handler = MoveEventHandler.new(start_query, main, [])
-      expect(handler.handle).to be_a_failed_handler_result
+      expect(handler.process).to be_a_failed_handler_result
     end
 
     it 'returns valid result for valid knight move' do
       main = MovePieceEvent[Position[:b, 1], Position[:c, 3], nil]
       handler = MoveEventHandler.new(start_query, main, [])
-      expect(handler.handle).to be_a_successful_handler_result
+      expect(handler.process).to be_a_successful_handler_result
     end
   end
 
@@ -64,77 +64,77 @@ RSpec.describe MoveEventHandler do
     it 'allows white rook to move to a5' do
       main = MovePieceEvent[Position[:a, 1], Position[:a, 5], nil]
       handler = MoveEventHandler.new(white_query, main, [])
-      expect(handler.handle).to be_a_successful_handler_result
+      expect(handler.process).to be_a_successful_handler_result
     end
 
     it 'prevents white pawn from moving to c6 (blocked by black pawn)' do
       event = MovePieceEvent[Position[:d, 5], Position[:c, 6], nil]
       handler = MoveEventHandler.new(white_query, event, [])
-      expect(handler.handle).to be_a_failed_handler_result
+      expect(handler.process).to be_a_failed_handler_result
     end
 
     it 'allows white knight to jump to c3' do
       event = MovePieceEvent[Position[:b, 1], Position[:c, 3], nil]
       handler = MoveEventHandler.new(white_query, event, [])
-      expect(handler.handle).to be_a_successful_handler_result
+      expect(handler.process).to be_a_successful_handler_result
     end
 
     it 'prevents white rook from moving through black queen' do
       event = MovePieceEvent[Position[:a, 1], Position[:d, 8], nil]
       handler = MoveEventHandler.new(white_query, event, [])
-      expect(handler.handle).to be_a_failed_handler_result
+      expect(handler.process).to be_a_failed_handler_result
     end
 
     it 'allows black queen to capture white pawn on d5 with empty remove event' do
       event = MovePieceEvent[Position[:d, 8], Position[:d, 5], nil]
       handler = MoveEventHandler.new(black_query, event, [RemovePieceEvent.new])
-      expect(handler.handle).to be_a_successful_handler_result
+      expect(handler.process).to be_a_successful_handler_result
     end
 
     it 'fails when capturing but no RemovePieceEvent is given' do
       event = MovePieceEvent[Position[:d, 8], Position[:d, 5], nil]
       handler = MoveEventHandler.new(black_query, event, [])
-      expect(handler.handle).to be_a_failed_handler_result
+      expect(handler.process).to be_a_failed_handler_result
     end
 
     it 'prevents black rook from moving to a1 (blocked by white rook)' do
       event = MovePieceEvent[Position[:h, 8], Position[:a, 1], nil]
       handler = MoveEventHandler.new(black_query, event, [])
-      expect(handler.handle).to be_a_failed_handler_result
+      expect(handler.process).to be_a_failed_handler_result
     end
 
     it 'fails when RemovePieceEvent position does not match the target square' do
       move = MovePieceEvent[Position[:d, 8], Position[:d, 5], nil]
       remove = RemovePieceEvent[Position[:c, 6], Piece[:white, :pawn]]
       handler = MoveEventHandler.new(black_query, move, [remove])
-      expect(handler.handle).to be_a_failed_handler_result
+      expect(handler.process).to be_a_failed_handler_result
     end
 
     it 'fails when RemovePieceEvent piece is not actually at given position' do
       move = MovePieceEvent[Position[:d, 8], Position[:d, 5], nil]
       remove = RemovePieceEvent[Position[:d, 5], Piece[:white, :knight]]
       handler = MoveEventHandler.new(black_query, move, [remove])
-      expect(handler.handle).to be_a_failed_handler_result
+      expect(handler.process).to be_a_failed_handler_result
     end
 
     it 'fails when moving from an empty square' do
       event = MovePieceEvent[Position[:c, 4], Position[:d, 5], nil]
       handler = MoveEventHandler.new(white_query, event, [])
-      expect(handler.handle).to be_a_failed_handler_result
+      expect(handler.process).to be_a_failed_handler_result
     end
 
     it 'fails when trying to move onto allied piece even with RemovePieceEvent' do
       move = MovePieceEvent[Position[:a, 1], Position[:d, 5], nil]
       remove = RemovePieceEvent[Position[:d, 5], Piece[:white, :pawn]]
       handler = MoveEventHandler.new(white_query, move, [remove])
-      expect(handler.handle).to be_a_failed_handler_result
+      expect(handler.process).to be_a_failed_handler_result
     end
 
     it 'fails if RemovePieceEvent is given but no piece is being captured' do
       move = MovePieceEvent[Position[:a, 1], Position[:a, 4], nil]
       remove = RemovePieceEvent[Position[:a, 4], nil]
       handler = MoveEventHandler.new(white_query, move, [remove])
-      expect(handler.handle).to be_a_failed_handler_result
+      expect(handler.process).to be_a_failed_handler_result
     end
 
     it 'succeeds when a valid capture is declared correctly & fully' do
@@ -142,7 +142,7 @@ RSpec.describe MoveEventHandler do
       captured = board.get(Position[:d, 5])
       remove = RemovePieceEvent[Position[:d, 5], captured]
       handler = MoveEventHandler.new(black_query, move, [remove])
-      expect(handler.handle).to be_a_successful_handler_result
+      expect(handler.process).to be_a_successful_handler_result
     end
   end
 
@@ -176,7 +176,7 @@ RSpec.describe MoveEventHandler do
         # White knight tries to move to c1 (occupied by white bishop)
         event = MovePieceEvent[Position[:b, 1], Position[:c, 1], nil]
         handler = MoveEventHandler.new(white_query, event, [])
-        expect(handler.handle).to be_a_failed_handler_result
+        expect(handler.process).to be_a_failed_handler_result
       end
 
       it 'prevents capturing own piece even with remove event' do
@@ -184,7 +184,7 @@ RSpec.describe MoveEventHandler do
         move_event = MovePieceEvent[Position[:a, 1], Position[:d, 5], nil]
         remove_event = RemovePieceEvent[Position[:d, 5], Piece[:white, :pawn]]
         handler = MoveEventHandler.new(white_query, move_event, [remove_event])
-        expect(handler.handle).to be_a_failed_handler_result
+        expect(handler.process).to be_a_failed_handler_result
       end
     end
 
@@ -193,14 +193,14 @@ RSpec.describe MoveEventHandler do
         # White rook tries to capture black pawn on a6 without remove event
         event = MovePieceEvent[Position[:a, 1], Position[:a, 6], nil]
         handler = MoveEventHandler.new(white_query, event, [])
-        expect(handler.handle).to be_a_failed_handler_result
+        expect(handler.process).to be_a_failed_handler_result
       end
 
       it 'allows capture with correct remove event' do
         move_event = MovePieceEvent[Position[:a, 1], Position[:a, 6], nil]
         remove_event = RemovePieceEvent[Position[:a, 6], nil]
         handler = MoveEventHandler.new(white_query, move_event, [remove_event])
-        expect(handler.handle).to be_a_successful_handler_result
+        expect(handler.process).to be_a_successful_handler_result
       end
     end
 
@@ -209,7 +209,7 @@ RSpec.describe MoveEventHandler do
         # Move white bishop from c1 to e3 (assuming clear path)
         event = MovePieceEvent[Position[:c, 1], Position[:e, 3], nil]
         handler = MoveEventHandler.new(white_query, event, [])
-        expect(handler.handle).to be_a_successful_handler_result
+        expect(handler.process).to be_a_successful_handler_result
       end
 
       it 'prevents bishop moving through piece blocking path' do
@@ -218,7 +218,7 @@ RSpec.describe MoveEventHandler do
         query_with_block = GameQuery.new(GameData.start.with(board: board_with_block))
         event = MovePieceEvent[Position[:c, 1], Position[:e, 3]]
         handler = MoveEventHandler.new(query_with_block, event, [])
-        expect(handler.handle).to be_a_failed_handler_result
+        expect(handler.process).to be_a_failed_handler_result
       end
     end
 
@@ -226,13 +226,13 @@ RSpec.describe MoveEventHandler do
       it 'prevents black from moving when it is white’s turn' do
         event = MovePieceEvent[Position[:e, 8], Position[:e, 7]]
         handler = MoveEventHandler.new(white_query, event, [])
-        expect(handler.handle).to be_a_failed_handler_result
+        expect(handler.process).to be_a_failed_handler_result
       end
 
       it 'allows black to move on black’s turn' do
         event = MovePieceEvent[Position[:e, 8], Position[:e, 7]]
         handler = MoveEventHandler.new(black_state, event, [])
-        expect(handler.handle).to be_a_successful_handler_result
+        expect(handler.process).to be_a_successful_handler_result
       end
     end
   end
@@ -266,13 +266,13 @@ RSpec.describe MoveEventHandler do
       # Attempt en passant without RemovePieceEvent
       move_event = MovePieceEvent[Position[:e, 5], Position[:d, 6]]
       handler = MoveEventHandler.new(query, move_event, [])
-      expect(handler.handle).to be_a_failed_handler_result
+      expect(handler.process).to be_a_failed_handler_result
     end
 
     it 'accept en passant with required events from move event' do
       move_event = MovePieceEvent[Position[:e, 5], Position[:d, 6]]
       handler = MoveEventHandler.new(query, move_event, [RemovePieceEvent.new])
-      expect(handler.handle).to be_a_successful_handler_result
+      expect(handler.process).to be_a_successful_handler_result
     end
   end
 end

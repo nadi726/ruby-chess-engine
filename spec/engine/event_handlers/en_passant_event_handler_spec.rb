@@ -36,25 +36,25 @@ RSpec.describe EnPassantEventHandler do
   it 'accepts valid en passant' do
     event = EnPassantEvent[Position[:e, 5], Position[:d, 6]]
     handler = EnPassantEventHandler.new(query, event, [])
-    expect(handler.handle).to be_a_successful_handler_result
+    expect(handler.process).to be_a_successful_handler_result
   end
 
   it 'rejects if given event is not en passant' do
     event = MovePieceEvent[Position[:c, 2], Position[:c, 3], nil]
     handler = EnPassantEventHandler.new(query, event, [])
-    expect(handler.handle).to be_a_failed_handler_result
+    expect(handler.process).to be_a_failed_handler_result
   end
 
   it 'rejects if target position is not valid en passant target' do
     event = EnPassantEvent[Position[:c, 2], Position[:c, 3]]
     handler = EnPassantEventHandler.new(query, event, [])
-    expect(handler.handle).to be_a_failed_handler_result
+    expect(handler.process).to be_a_failed_handler_result
   end
 
   it 'rejects if moving piece is not a pawn' do
     event = EnPassantEvent[Position[:b, 1], Position[:a, 3]]
     handler = EnPassantEventHandler.new(query, event, [])
-    expect(handler.handle).to be_a_failed_handler_result
+    expect(handler.process).to be_a_failed_handler_result
   end
 
   it 'rejects if last move was not a double-step pawn move' do
@@ -70,7 +70,7 @@ RSpec.describe EnPassantEventHandler do
     )
     event = EnPassantEvent[Position[:e, 5], Position[:d, 6]]
     handler = EnPassantEventHandler.new(query, event, [])
-    expect(handler.handle).to be_a_failed_handler_result
+    expect(handler.process).to be_a_failed_handler_result
   end
 
   it 'rejects if not immediate (other move played in between)' do
@@ -87,7 +87,7 @@ RSpec.describe EnPassantEventHandler do
     )
     event = EnPassantEvent[Position[:e, 5], Position[:d, 6]]
     handler = EnPassantEventHandler.new(query, event, [])
-    expect(handler.handle).to be_a_failed_handler_result
+    expect(handler.process).to be_a_failed_handler_result
   end
 
   it 'rejects if it is not the right player’s turn' do
@@ -101,6 +101,6 @@ RSpec.describe EnPassantEventHandler do
     )
     event = EnPassantEvent[Position[:e, 5], Position[:d, 6]]
     handler = EnPassantEventHandler.new(query, event, [])
-    expect(handler.handle).to be_a_failed_handler_result
+    expect(handler.process).to be_a_failed_handler_result
   end
 end

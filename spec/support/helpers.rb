@@ -44,19 +44,15 @@ def fill_board(pieces_with_positions, board: Board.empty)
 end
 
 RSpec::Matchers.define :be_a_successful_handler_result do
-  match do |actual|
-    actual[:success] == true
-  end
+  match(&:success?)
 
   failure_message do |actual|
-    "expected success, but got failure.\nError message: #{actual[:error]}"
+    "expected success, but got failure.\nError message: #{actual.error}"
   end
 end
 
 RSpec::Matchers.define :be_a_failed_handler_result do
-  match do |actual|
-    actual[:success] == false
-  end
+  match(&:failure?)
 
   failure_message do
     'expected failure, but got success.'

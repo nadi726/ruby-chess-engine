@@ -12,8 +12,9 @@ This folder contains all classes responsible for handling chess events.
 
 ## Included Files
 
-- `init.rb` – Entry point that requires all handlers.
+- `init.rb` – Entry point that requires all handlers. Includes a factory method for creating handlers.
 - `event_handler.rb` – Base class for shared logic.
+- `event_result.rb` - Data defintion for the proccessed handling result.
 - Event-specific handlers:
   - `move_event_handler.rb`
   - `en_passant_event_handler.rb`

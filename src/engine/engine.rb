@@ -15,7 +15,6 @@ class Engine
     @state = GameState.new
     @parser = nil # TODO
     @listeners = []
-    @event_handler = EventHandler.new(@state)
   end
 
   def add_listener(listener)
@@ -35,8 +34,9 @@ class Engine
     # For example - that a piece has to be removed, or that there is a checkmate
     # This is the kind of information that could be provided by chess notation
     primary_event, *extras = events
-    result = @event_handler.handle_events(primary_event, extras)
-    @state.apply_events(result[:events]) if result[:success]
+    event_handler = event_handler_for(primary_event, extras, @state.query)
+    result = event_handler.process
+    @state.apply_events(result.events) if result.success?
     # TODO: - error checking
     notify_listeners(result)
   end
