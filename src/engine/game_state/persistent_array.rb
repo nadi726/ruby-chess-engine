@@ -39,8 +39,8 @@ class PersistentArray
     PersistentArray.new(@root.set(index, new_value, SIZE))
   end
 
-  def each(&block)
-    @root.each(&block)
+  def each(&)
+    @root.each(&)
   end
 end
 
@@ -76,8 +76,8 @@ class InternalNode
     InternalNode.new(new_branches)
   end
 
-  def each(&block)
-    @branches.each { |branch| branch.each(&block) }
+  def each(&)
+    @branches.each { |branch| branch.each(&) }
   end
 end
 
@@ -104,7 +104,7 @@ class LeafNode
     LeafNode.new(new_values)
   end
 
-  def each(&block)
-    @values.each(&block)
+  def each(&)
+    @values.each(&)
   end
 end

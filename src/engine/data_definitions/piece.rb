@@ -27,7 +27,7 @@ class Piece
   private
 
   # Yields every position this piece could move to or attack, depending on mode.
-  def each_potential_move(board, position, is_attacking:, &block)
+  def each_potential_move(board, position, is_attacking:, &)
     return enum_for(__method__, board, position, is_attacking: is_attacking) unless block_given?
 
     yielded = false
@@ -40,7 +40,7 @@ class Piece
 
     deltas = adjust_for_color(is_attacking ? attacks_deltas : base_deltas)
     deltas.each do |delta|
-      walk_deltas(delta, board, position, is_attacking: is_attacking, &block)
+      walk_deltas(delta, board, position, is_attacking: is_attacking, &)
     end
   end
 
