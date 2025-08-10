@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require 'immutable'
+require_relative 'castling_data'
+
 # Events represent game actions or state changes.
 # They are produced by the parser (user intent) and by the engine (execution outcome).
 # Each event is self-contained and immutable after creation.
@@ -28,17 +31,31 @@ MovePieceEvent = ActionEvent.define(:from, :to, :piece) do
 end
 
 # Castling move.
-# Do not use #new directly.
 # 'side' is one of: :kingside, :queenside
-# Use `CastleEvent.request(side)` for parser-side creation,
-# and `CastleEvent.resolve(...)` for engine-side execution with positions.
-CastleEvent = Data.define(:side, :king_to, :rook_from, :rook_to) do
-  def self.request(side)
-    new(side, nil, nil, nil)
+CASTLING_SQUARES = Immutable.from(
+  {
+    %i[white kingside] => [Position[:g1], Position[:h1], Position[:f1]],
+    %i[white queenside] => [Position[:c1], Position[:a1], Position[:d1]],
+    %i[black kingside] => [Position[:g8], Position[:h8], Position[:f8]],
+    %i[black queenside] => [Position[:c8], Position[:a8], Position[:d8]]
+  }
+)
+
+CastlingEvent = ActionEvent.define(:side, :color) do
+  def king_from
+    CASTLING_DATA[[color, side]][:king_from]
   end
 
-  def self.resolve(side, king_to, rook_from, rook_to)
-    new(side, king_to, rook_from, rook_to)
+  def king_to
+    CASTLING_DATA[[color, side]][:king_to]
+  end
+
+  def rook_from
+    CASTLING_DATA[[color, side]][:rook_from]
+  end
+
+  def rook_to
+    CASTLING_DATA[[color, side]][:rook_to]
   end
 end
 
