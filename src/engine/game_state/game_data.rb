@@ -4,10 +4,18 @@ require_relative 'board'
 
 # Tracks whether each side still retains castling rights.
 # Rights may be lost due to moving the king or rook, or other game events.
+
+CastlingSide = Data.define(:kingside, :queenside)
 CastlingRights = Data.define(
-  :white_kingside, :white_queenside,
-  :black_kingside, :black_queenside
-)
+  :white, :black
+) do
+  def self.start
+    CastlingRights[
+      CastlingSide[true, true],
+      CastlingSide[true, true]
+    ]
+  end
+end
 
 # Immutable container for the current turn's game data:
 # board layout, active color, en passant target, castling rights, and halfmove clock.
@@ -24,10 +32,7 @@ GameData = Data.define(
       board: Board.start,
       current_color: :white,
       en_passant_target: nil,
-      castling_rights: CastlingRights.new(
-        white_kingside: true, white_queenside: true,
-        black_kingside: true, black_queenside: true
-      ),
+      castling_rights: CastlingRights.start,
       halfmove_clock: 0
     ]
   end
