@@ -5,6 +5,7 @@ require_relative 'game_data'
 require_relative 'game_query'
 require_relative '../data_definitions/piece'
 require_relative '../data_definitions/position'
+require_relative '../data_definitions/castling_data'
 require 'immutable'
 
 # Represents the immutable state of the game at a specific point in time.
@@ -42,6 +43,7 @@ class GameState
   # Process a sequence of events to produce the next GameState
   # Assumes the event sequence is valid.
   def apply_events(events)
+    events = Immutable.from events
     signature_count = @position_signatures.fetch(@data.position_signature, 0)
     signatures = @position_signatures.put(@data.position_signature, signature_count + 1)
 
@@ -56,7 +58,7 @@ class GameState
 
   def advance_data(events)
     GameData.new(
-      board: advance_board(@data.board),
+      board: advance_board(@data.board, events),
       current_color: @data.current_color == :white ? :black : :white,
       en_passant_target: compute_en_passant(events),
       castling_rights: compute_castling_rights(@data.castling_rights, events),
@@ -64,9 +66,32 @@ class GameState
     )
   end
 
-  def advance_board(board)
-    # TODO
-    board # placeholder
+  def advance_board(board, events)
+    case main_event(events)
+    in MovePieceEvent => e
+      advance_with_move_piece_event(board, events, e)
+    in EnPassantEvent => e
+      board.remove(e.captured_position).move(e.from, e.to)
+    in CastlingEvent => e
+      board.move(e.king_from, e.king_to).move(e.rook_from, e.rook_to)
+
+    # TODO: Confirm this is the intended behaivor
+    in nil
+      raise "No ActionEvent found in event sequence: #{events.map(&:class)}"
+    else
+      raise "Unhandled event type: #{events.first.class}"
+    end
+  end
+
+  def advance_with_move_piece_event(board, events, move_event)
+    from, to, piece = move_event.deconstruct
+    promote = events.grep(PromotePieceEvent).first
+    final_piece = promote ? Piece.new(piece.color, promote.piece_type) : piece
+
+    removals = events.grep(RemovePieceEvent)
+    board = removals.reduce(board) { |b, e| b.remove(e.position) }
+
+    board.remove(from).insert(final_piece, to)
   end
 
   def compute_en_passant(events)
@@ -81,16 +106,37 @@ class GameState
     Position[move.from.file, (move.from.rank + move.to.rank) / 2]
   end
 
+  def compute_castling_rights(previous_rights, events)
+    color = data.current_color
+    sides = previous_rights[color]
+
+    kingside_rook_pos  = CASTLING_DATA[[:kingside, color]][:rook_from]
+    queenside_rook_pos = CASTLING_DATA[[:queenside, color]][:rook_from]
+
+    sides = case main_event(events)
+            in MovePieceEvent => e
+              if e.piece.type == :king
+                sides.with(kingside: false, queenside: false)
+              elsif e.from == kingside_rook_pos
+                sides.with(kingside: false)
+              elsif e.from == queenside_rook_pos
+                sides.with(queenside: false)
+              end
+            in CastlingEvent
+              sides.with(kingside: false, queenside: false)
+            else
+              sides
+            end
+
+    previous_rights.with(color => sides)
+  end
+
   def compute_halfmove_clock(clock, events)
     # TODO
     clock + 1
   end
 
-  def remove_piece(position)
-    # TODO
-  end
-
-  def move_piece(from, to)
-    # TODO
+  def main_event(events)
+    events.grep(ActionEvent).first
   end
 end
