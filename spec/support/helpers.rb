@@ -58,3 +58,21 @@ RSpec::Matchers.define :be_a_failed_handler_result do
     'expected failure, but got success.'
   end
 end
+
+RSpec::Matchers.define :have_piece_at do |pos, expected_piece|
+  match do |actual_state|
+    actual_piece = actual_state.query.board.get(pos)
+    actual_piece == expected_piece
+  end
+
+  failure_message do |actual_state|
+    actual_piece = actual_state.query.board.get(pos)
+    "Expected #{pos} to have #{expected_piece || 'empty'}, but got #{actual_piece || 'empty'}"
+  end
+end
+
+RSpec::Matchers.define :be_empty_at do |pos|
+  match do |actual_state|
+    have_piece_at(pos, nil).matches?(actual_state)
+  end
+end

@@ -32,30 +32,22 @@ end
 
 # Castling move.
 # 'side' is one of: :kingside, :queenside
-CASTLING_SQUARES = Immutable.from(
-  {
-    %i[white kingside] => [Position[:g1], Position[:h1], Position[:f1]],
-    %i[white queenside] => [Position[:c1], Position[:a1], Position[:d1]],
-    %i[black kingside] => [Position[:g8], Position[:h8], Position[:f8]],
-    %i[black queenside] => [Position[:c8], Position[:a8], Position[:d8]]
-  }
-)
 
-CastlingEvent = ActionEvent.define(:side, :color) do
+CastlingEvent = ActionEvent.define(:color, :side) do
   def king_from
-    CASTLING_DATA[[color, side]][:king_from]
+    CastlingData.king_from(color, side)
   end
 
   def king_to
-    CASTLING_DATA[[color, side]][:king_to]
+    CastlingData.king_to(color, side)
   end
 
   def rook_from
-    CASTLING_DATA[[color, side]][:rook_from]
+    CastlingData.rook_from(color, side)
   end
 
   def rook_to
-    CASTLING_DATA[[color, side]][:rook_to]
+    CastlingData.rook_to(color, side)
   end
 end
 

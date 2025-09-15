@@ -61,7 +61,7 @@ class GameState
       board: advance_board(@data.board, events),
       current_color: @data.current_color == :white ? :black : :white,
       en_passant_target: compute_en_passant(events),
-      castling_rights: compute_castling_rights(@data.castling_rights, events),
+      castling_rights: compute_castling_rights(@data.castling_rights, @data.current_color, events),
       halfmove_clock: compute_halfmove_clock(@data.halfmove_clock, events)
     )
   end
@@ -106,12 +106,10 @@ class GameState
     Position[move.from.file, (move.from.rank + move.to.rank) / 2]
   end
 
-  def compute_castling_rights(previous_rights, events)
-    color = data.current_color
-    sides = previous_rights[color]
-
-    kingside_rook_pos  = CASTLING_DATA[[:kingside, color]][:rook_from]
-    queenside_rook_pos = CASTLING_DATA[[:queenside, color]][:rook_from]
+  def compute_castling_rights(previous_rights, color, events)
+    sides = previous_rights.get_side color
+    kingside_rook_pos  = CastlingData.rook_from(color, :kingside)
+    queenside_rook_pos = CastlingData.rook_from(color, :queenside)
 
     sides = case main_event(events)
             in MovePieceEvent => e
@@ -121,13 +119,14 @@ class GameState
                 sides.with(kingside: false)
               elsif e.from == queenside_rook_pos
                 sides.with(queenside: false)
+              else
+                sides
               end
             in CastlingEvent
               sides.with(kingside: false, queenside: false)
             else
               sides
             end
-
     previous_rights.with(color => sides)
   end
 

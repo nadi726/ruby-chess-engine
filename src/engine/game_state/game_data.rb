@@ -15,6 +15,10 @@ CastlingRights = Data.define(
       CastlingSide[true, true]
     ]
   end
+
+  def get_side(color)
+    color == :white ? white : black
+  end
 end
 
 # Immutable container for the current turn's game data:
