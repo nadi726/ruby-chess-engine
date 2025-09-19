@@ -131,8 +131,13 @@ class GameState
   end
 
   def compute_halfmove_clock(clock, events)
-    # TODO
-    clock + 1
+    reset_clock = events.any? do |e|
+      (e.is_a?(MovePieceEvent) && e.piece.type == :pawn) ||
+        e.is_a?(RemovePieceEvent) ||
+        e.is_a?(EnPassantEvent)
+    end
+
+    reset_clock ? 0 : clock + 1
   end
 
   def main_event(events)

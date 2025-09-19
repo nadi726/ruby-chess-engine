@@ -133,7 +133,7 @@ RSpec.describe GameState do
               [
                 [Piece[:white, :king], Position[:e, 1]],
                 [Piece[:white, :rook], Position[:a, 1]],
-                [Piece[:black, :king], Position[:e, 8]] # added black king for valid chess
+                [Piece[:black, :king], Position[:e, 8]]
               ]
             )
             expect_castling_on(
@@ -283,7 +283,72 @@ RSpec.describe GameState do
     end
 
     describe 'other state fields' do
-      xit 'increments halfmove clock correctly' # placeholder
+      describe 'halfmove clock' do
+        def halfmove_clock(state) = state.query.data.halfmove_clock
+
+        it 'increments correctly' do
+          s0 = GameState.start
+          s1 = s0.apply_events([MovePieceEvent[Position[:g, 1], Position[:f, 3], Piece[:white, :knight]]])
+          s2 = s1.apply_events([MovePieceEvent[Position[:b, 8], Position[:c, 6], Piece[:black, :knight]]])
+          s3 = s2.apply_events([MovePieceEvent[Position[:f, 3], Position[:g, 1], Piece[:white, :knight]]])
+
+          expect(halfmove_clock(s0)).to eq 0
+          expect(halfmove_clock(s1)).to eq 1
+          expect(halfmove_clock(s2)).to eq 2
+          expect(halfmove_clock(s3)).to eq 3
+        end
+
+        it 'resets on pawn move' do
+          gamedata = GameData.start.with(halfmove_clock: 2)
+          state = GameState.new(data: gamedata)
+
+          new_state = state.apply_events([MovePieceEvent[Position[:e, 2], Position[:e, 4],
+                                                         Piece[:white, :pawn]]])
+          expect(halfmove_clock(new_state)).to eq(0)
+        end
+
+        it 'resets on capture' do
+          board = fill_board(
+            [
+              [Piece[:white, :pawn], Position[:e, 4]],
+              [Piece[:black, :pawn], Position[:d, 5]],
+              [Piece[:white, :king], Position[:e, 1]],
+              [Piece[:black, :king], Position[:e, 8]]
+            ]
+          )
+
+          gamedata = GameData.start.with(board: board, halfmove_clock: 10)
+          state = GameState.new(data: gamedata)
+
+          new_state = state.apply_events(
+            [
+              MovePieceEvent[Position[:e, 4], Position[:d, 5], Piece[:white, :pawn]],
+              RemovePieceEvent[Position[:d, 5], Piece[:black, :pawn]]
+            ]
+          )
+
+          expect(halfmove_clock(new_state)).to eq 0
+        end
+
+        it 'resets on en passant capture' do
+          board = fill_board(
+            [
+              [Piece[:white, :pawn], Position[:e, 5]],
+              [Piece[:black, :pawn], Position[:d, 5]],
+              [Piece[:white, :king], Position[:e, 1]],
+              [Piece[:black, :king], Position[:e, 8]]
+            ]
+          )
+
+          gamedata = GameData.start.with(board: board, en_passant_target: Position[:d, 6], halfmove_clock: 13)
+          state = GameState.new(data: gamedata)
+
+          new_state = state.apply_events([EnPassantEvent[Position[:e, 5], Position[:d, 6]]])
+
+          expect(halfmove_clock(new_state)).to eq 0
+        end
+      end
+
       context 'updates position signatures correctly' do
         it 'uses a different position signature for non matching data' do
           base_data = GameData[
