@@ -109,7 +109,14 @@ class Piece
   public
 
   def to_s
-    "#{color} #{type}"
+    case type
+    when :king then 'K'
+    when :queen then 'Q'
+    when :rook then 'R'
+    when :bishop then 'B'
+    when :knight then 'N'
+    when :pawn then 'P'
+    end + (color == :white ? '' : 'b')
   end
 
   # For cleaner test messages

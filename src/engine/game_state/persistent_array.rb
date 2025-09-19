@@ -42,6 +42,10 @@ class PersistentArray
   def each(&)
     @root.each(&)
   end
+
+  def to_s
+    "[#{map(&:inspect).join(', ')}]"
+  end
 end
 
 # A PersistentArray node that holds references to other nodes

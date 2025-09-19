@@ -120,4 +120,24 @@ class Board
   def valid_piece?(piece)
     piece.respond_to?(:type) && piece.respond_to?(:color)
   end
+
+  def to_s
+    rows = []
+    rows << '  a b c d e f g h'
+    (0...SIZE).each do |row|
+      row_str = "#{row + 1} "
+      (0...SIZE).each do |col|
+        index = position_to_index(Position.from_index(row, col))
+        piece = @array.get(index)
+        row_str += if piece
+                     piece.to_s + ' '
+                   else
+                     '. '
+                   end
+      end
+      rows << row_str.chomp
+    end
+    rows << '  a b c d e f g h'
+    rows.join("\n")
+  end
 end
