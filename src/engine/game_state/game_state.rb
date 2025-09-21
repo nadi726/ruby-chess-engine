@@ -59,7 +59,7 @@ class GameState
   def advance_data(events)
     GameData.new(
       board: advance_board(@data.board, events),
-      current_color: @data.current_color == :white ? :black : :white,
+      current_color: @data.other_color,
       en_passant_target: compute_en_passant(events),
       castling_rights: compute_castling_rights(@data.castling_rights, @data.current_color, events),
       halfmove_clock: compute_halfmove_clock(@data.halfmove_clock, events)

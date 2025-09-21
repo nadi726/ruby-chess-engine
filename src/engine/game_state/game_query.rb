@@ -18,7 +18,7 @@ class GameQuery
   def piece_attacking?(from, target_position)
     piece = board.get(from)
     target_piece = board.get(target_position)
-    return false unless current_pieces.include?(piece) && other_pieces.include?(target_piece)
+    return false unless piece && target_piece && piece.color != target_piece.color
 
     piece.threatened_squares(board, from).include?(target_position)
   end
@@ -28,9 +28,19 @@ class GameQuery
     current_pieces.include?(piece) && board.get(to).nil? && piece.moves(board, from).include?(to)
   end
 
-  # returns: :white, :black, or nil
+  # returns the current color if the king is in check, otherwise nil
   def check
-    # TODO
+    _k, king_pos = @board.pieces_with_positions(color: @data.current_color, type: :king).first
+    other_pieces_positions = @board.pieces_with_positions(color: @data.other_color)
+    is_in_check = other_pieces_positions.any? do |_, piece_pos|
+      piece_attacking?(piece_pos, king_pos)
+    end
+
+    is_in_check ? @data.current_color : nil
+  end
+
+  def in_check?
+    !check.nil?
   end
 
   # returns: :white, :black, or nil
@@ -43,7 +53,7 @@ class GameQuery
   end
 
   def other_pieces
-    @board.find_pieces(color: @data.current_color == :white ? :black : :white)
+    @board.find_pieces(color: @data.other_color)
   end
 
   def all_pieces

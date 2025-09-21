@@ -49,4 +49,8 @@ GameData = Data.define(
       castling_rights
     ].hash
   end
+
+  def other_color
+    current_color == :white ? :black : :white
+  end
 end
