@@ -103,4 +103,19 @@ RSpec.describe EnPassantEventHandler do
     handler = EnPassantEventHandler.new(query, event, [])
     expect(handler.process).to be_a_failed_handler_result
   end
+
+  it "doesn't put the moving player's king in check" do
+    new_board = board.move(Position[:h, 8], Position[:e, 6])
+    query = GameQuery.new(
+      GameData.start.with(
+        board: new_board,
+        en_passant_target: Position[:d, 6],
+        current_color: :white
+      ),
+      move_history
+    )
+    event = EnPassantEvent[Position[:e, 5], Position[:d, 6]]
+    handler = EnPassantEventHandler.new(query, event, [])
+    expect(handler.process).to be_a_failed_handler_result
+  end
 end

@@ -47,8 +47,18 @@ class EventHandler
   # Common post-processing logic, applied to all valid results.
   # (e.g., flagging check or checkmate events, enforcing turn-based constraints, etc.)
   def post_process(events)
-    # TODO
+    return invalid_result if next_turn_in_check?(events)
+
     valid_result events # Placeholder
+  end
+
+  def next_turn_in_check?(events)
+    new_query = query.state.apply_events(events).query
+    # For checking the current color
+    new_data = new_query.data.with(current_color: new_query.data.other_color)
+    new_query = GameQuery.new(new_data, new_query.move_history, new_query.position_signatures)
+
+    new_query.in_check?
   end
 
   def valid_result(events)

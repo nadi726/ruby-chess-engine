@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'immutable'
+require_relative 'game_state'
 
 # Provides derived information about the current game state.
 # Centralizes logic for answering queries such as possible movement, attacks, or draw conditions.
@@ -12,6 +13,10 @@ class GameQuery
     @move_history = move_history
     @position_signatures = position_signatures
     @board = data.board # For easier access
+  end
+
+  def state
+    GameState.new(data: data, move_history: move_history, position_signatures: position_signatures)
   end
 
   # Determines if a piece at the given position is attacking a target position.

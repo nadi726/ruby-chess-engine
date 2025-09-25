@@ -275,4 +275,58 @@ RSpec.describe MoveEventHandler do
       expect(handler.process).to be_a_successful_handler_result
     end
   end
+
+  context 'check detection' do
+    it 'continues silently when the king is currently in check but moves out of it' do
+      board = fill_board(
+        [
+          [Piece[:black, :queen], Position[:e, 8]],
+          [Piece[:black, :king], Position[:d, 8]],
+          [Piece[:white, :king], Position[:e, 1]]
+        ]
+      )
+
+      gamedata = GameData.start.with(board: board)
+      state = GameState.new(data: gamedata)
+      move_event = MovePieceEvent[Position[:e, 1], Position[:f, 1], nil]
+      handler = MoveEventHandler.new(state.query, move_event, [])
+
+      expect(handler.process).to be_a_successful_handler_result
+    end
+
+    it 'fails when moving into check' do
+      board = fill_board(
+        [
+          [Piece[:black, :queen], Position[:e, 8]],
+          [Piece[:black, :king], Position[:d, 8]],
+          [Piece[:white, :rook], Position[:e, 4]],
+          [Piece[:white, :king], Position[:e, 1]]
+        ]
+      )
+
+      gamedata = GameData.start.with(board: board)
+      state = GameState.new(data: gamedata)
+      move_event = MovePieceEvent[Position[:e, 4], Position[:b, 4], nil]
+      handler = MoveEventHandler.new(state.query, move_event, [])
+
+      expect(handler.process).to be_a_failed_handler_result
+    end
+
+    it "fails when the king is currently in check and doesn't moves out of it" do
+      board = fill_board(
+        [
+          [Piece[:black, :queen], Position[:e, 8]],
+          [Piece[:black, :king], Position[:d, 8]],
+          [Piece[:white, :king], Position[:e, 1]]
+        ]
+      )
+
+      gamedata = GameData.start.with(board: board)
+      state = GameState.new(data: gamedata)
+      move_event = MovePieceEvent[Position[:e, 1], Position[:e, 2], nil]
+      handler = MoveEventHandler.new(state.query, move_event, [])
+
+      expect(handler.process).to be_a_failed_handler_result
+    end
+  end
 end

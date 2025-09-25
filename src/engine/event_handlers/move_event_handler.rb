@@ -7,7 +7,8 @@ require_relative 'en_passant_event_handler'
 # Event handler for MovePieceEvent
 class MoveEventHandler < EventHandler
   def initialize(query, main, extras)
-    super(query, normalize_move(main), extras)
+    super
+    @main = normalize_move(main)
   end
 
   private
