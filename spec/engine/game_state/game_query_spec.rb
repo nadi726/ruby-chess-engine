@@ -19,7 +19,7 @@ RSpec.describe GameQuery do
     context 'with no check' do
       it 'returns nil on game start' do
         state = GameState.start
-        expect(state.query.check).to be_nil
+        expect(state.query).not_to be_in_check
       end
 
       it 'returns nil after move events sequence' do
@@ -33,7 +33,7 @@ RSpec.describe GameQuery do
 
         state = event_history.reduce(start_state) { |state, event| state.apply_events([event]) }
 
-        expect(state.query.check).to be_nil
+        expect(state.query).not_to be_in_check
       end
 
       it 'returns nil if en passant is available but does not expose king to check' do
@@ -50,7 +50,7 @@ RSpec.describe GameQuery do
         gamedata = GameData.start.with(board: board, en_passant_target: Position[:d, 6])
         state = GameState.new(data: gamedata)
 
-        expect(state.query.check).to be_nil
+        expect(state.query).not_to be_in_check
       end
 
       it 'returns nil on minimal setup' do
@@ -65,7 +65,7 @@ RSpec.describe GameQuery do
 
         gamedata = GameData.start.with(board: board)
         state = GameState.new(data: gamedata)
-        expect(state.query.check).to be_nil
+        expect(state.query).not_to be_in_check
       end
     end
 
@@ -81,7 +81,7 @@ RSpec.describe GameQuery do
 
         gamedata = GameData.start.with(board: board)
         state = GameState.new(data: gamedata)
-        expect(state.query.check).to eq(:white)
+        expect(state.query).to be_in_check(:white)
       end
 
       it 'returns :white for check by black pawn' do
@@ -95,7 +95,7 @@ RSpec.describe GameQuery do
 
         gamedata = GameData.start.with(board: board)
         state = GameState.new(data: gamedata)
-        expect(state.query.check).to eq(:white)
+        expect(state.query).to be_in_check(:white)
       end
 
       it 'returns :black for check by white knight' do
@@ -109,7 +109,7 @@ RSpec.describe GameQuery do
 
         gamedata = GameData.start.with(board: board, current_color: :black)
         state = GameState.new(data: gamedata)
-        expect(state.query.check).to eq(:black)
+        expect(state.query).to be_in_check(:black)
       end
     end
 
@@ -126,7 +126,7 @@ RSpec.describe GameQuery do
 
         gamedata = GameData.start.with(board: board)
         state = GameState.new(data: gamedata)
-        expect(state.query.check).to be_nil
+        expect(state.query).not_to be_in_check
       end
 
       it 'returns nil for black rook blocked by black piece' do
@@ -140,7 +140,7 @@ RSpec.describe GameQuery do
 
         gamedata = GameData.start.with(board: board)
         state = GameState.new(data: gamedata)
-        expect(state.query.check).to be_nil
+        expect(state.query).not_to be_in_check
       end
 
       it 'returns nil for white bishop blocked' do
@@ -155,7 +155,7 @@ RSpec.describe GameQuery do
 
         gamedata = GameData.start.with(board: board, current_color: :black)
         state = GameState.new(data: gamedata)
-        expect(state.query.check).to be_nil
+        expect(state.query).not_to be_in_check
       end
     end
 
@@ -172,7 +172,7 @@ RSpec.describe GameQuery do
 
         gamedata = GameData.start.with(board: board)
         state = GameState.new(data: gamedata)
-        expect(state.query.check).to eq(:white)
+        expect(state.query).to be_in_check(:white)
       end
     end
 
@@ -195,7 +195,7 @@ RSpec.describe GameQuery do
         filler_event = MovePieceEvent[Position[:e, 8], Position[:e, 7], Piece[:black, :rook]]
         new_state = state.apply_events([event]).apply_events([filler_event])
 
-        expect(new_state.query.check).to eq(:white)
+        expect(new_state.query).to be_in_check(:white)
       end
     end
   end

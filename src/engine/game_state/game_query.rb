@@ -33,24 +33,13 @@ class GameQuery
     current_pieces.include?(piece) && board.get(to).nil? && piece.moves(board, from).include?(to)
   end
 
-  # returns the current color if the king is in check, otherwise nil
-  def check
-    _k, king_pos = @board.pieces_with_positions(color: @data.current_color, type: :king).first
-    other_pieces_positions = @board.pieces_with_positions(color: @data.other_color)
-    is_in_check = other_pieces_positions.any? do |_, piece_pos|
+  # returns true if the king of the specified color is in check
+  def in_check?(color = @data.current_color)
+    _k, king_pos = king_with_pos(color)
+    other_pieces_positions = @board.pieces_with_positions(color: color == :white ? :black : :white)
+    other_pieces_positions.any? do |_, piece_pos|
       piece_attacking?(piece_pos, king_pos)
     end
-
-    is_in_check ? @data.current_color : nil
-  end
-
-  def in_check?
-    !check.nil?
-  end
-
-  # returns: :white, :black, or nil
-  def checkmate
-    # TODO
   end
 
   def current_pieces
@@ -63,5 +52,9 @@ class GameQuery
 
   def all_pieces
     board.find_pieces
+  end
+
+  def king_with_pos(color)
+    @board.pieces_with_positions(color: color, type: :king).first
   end
 end

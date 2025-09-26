@@ -54,11 +54,7 @@ class EventHandler
 
   def next_turn_in_check?(events)
     new_query = query.state.apply_events(events).query
-    # For checking the current color
-    new_data = new_query.data.with(current_color: new_query.data.other_color)
-    new_query = GameQuery.new(new_data, new_query.move_history, new_query.position_signatures)
-
-    new_query.in_check?
+    new_query.in_check?(query.data.current_color)
   end
 
   def valid_result(events)
