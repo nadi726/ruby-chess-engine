@@ -5,6 +5,7 @@ require_relative 'event_handler'
 require_relative 'en_passant_event_handler'
 
 # Event handler for MovePieceEvent
+# TODO: Add promotion checks - PromotionEvent if and only if pawn is at one-before-last rank
 class MoveEventHandler < EventHandler
   def initialize(query, main, extras)
     super
@@ -51,7 +52,7 @@ class MoveEventHandler < EventHandler
 
   def move_valid?
     event_piece = main&.piece
-    (event_piece.nil? || event_piece == from_piece) && from_piece
+    (event_piece.nil? || event_piece == from_piece) && from_piece && event_piece.color == query.data.current_color
   end
 
   def valid_remove_piece_event?

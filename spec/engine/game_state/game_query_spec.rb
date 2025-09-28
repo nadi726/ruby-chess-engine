@@ -15,7 +15,7 @@ RSpec.describe GameQuery do
   describe '#piece_can_move?' do
   end
 
-  describe '#check' do
+  describe '#in_check?' do
     context 'with no check' do
       it 'returns nil on game start' do
         state = GameState.start
@@ -197,6 +197,256 @@ RSpec.describe GameQuery do
 
         expect(new_state.query).to be_in_check(:white)
       end
+    end
+  end
+
+  describe '#in_checkmate?' do
+    it 'returns false when the king is not in check' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Position[:h, 8]],
+          [Piece[:white, :king], Position[:f, 6]]
+        ]
+      )
+
+      gamedata = GameData.start.with(board: board, current_color: :black)
+      query = GameQuery.new(gamedata)
+
+      expect(query).not_to be_in_checkmate
+    end
+
+    it "Detects checkmate based on move sequence(fool's mate)" do
+      event_history = [
+        MovePieceEvent[Position[:f, 2], Position[:f, 3], Piece[:white, :pawn]],
+        MovePieceEvent[Position[:e, 7], Position[:e, 6], Piece[:black, :pawn]],
+        MovePieceEvent[Position[:g, 2], Position[:g, 4], Piece[:white, :pawn]],
+        MovePieceEvent[Position[:d, 8], Position[:h, 4], Piece[:black, :queen]]
+      ]
+
+      state = event_history.reduce(start_state) { |state, event| state.apply_events([event]) }
+
+      expect(state.query).to be_in_checkmate
+    end
+
+    it 'returns true when the current player is checkmated' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Position[:h, 8]],
+          [Piece[:white, :queen], Position[:g, 7]],
+          [Piece[:white, :king], Position[:f, 6]]
+        ]
+      )
+
+      gamedata = GameData.start.with(board: board, current_color: :black)
+      query = GameQuery.new(gamedata)
+
+      expect(query).to be_in_checkmate
+    end
+
+    it 'returns false when the current player is not checkmated' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Position[:h, 8]],
+          [Piece[:white, :queen], Position[:g, 7]],
+          [Piece[:white, :king], Position[:f, 6]]
+        ]
+      )
+
+      gamedata = GameData.start.with(board: board, current_color: :white)
+      query = GameQuery.new(gamedata)
+
+      expect(query).not_to be_in_checkmate
+    end
+
+    it 'detects checkmate in double check correctly' do
+      board = fill_board(
+        [
+          [Piece[:black, :king],  Position[:h, 8]],
+          [Piece[:white, :rook],  Position[:h, 1]],
+          [Piece[:white, :queen], Position[:f, 6]],
+          [Piece[:white, :knight], Position[:e, 7]],
+          [Piece[:white, :king], Position[:f, 2]]
+        ]
+      )
+
+      gamedata = GameData.start.with(board: board, current_color: :black)
+      query = GameQuery.new(gamedata)
+
+      expect(query).to be_in_checkmate
+    end
+
+    it 'detects checkmate when the only potential block is illegal due to pin' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Position[:e, 8]],
+          [Piece[:black, :rook],  Position[:e, 7]],
+          [Piece[:white, :rook],  Position[:e, 1]],
+          [Piece[:white, :rook], Position[:f, 2]],
+          [Piece[:white, :bishop], Position[:c, 6]],
+          [Piece[:white, :knight], Position[:b, 7]],
+          [Piece[:white, :king], Position[:h, 1]]
+        ]
+      )
+
+      gamedata = GameData.start.with(board: board, current_color: :black)
+      query = GameQuery.new(gamedata)
+
+      expect(query).to be_in_checkmate
+    end
+
+    it 'returns false when a legal block is available' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Position[:h, 8]],
+          [Piece[:white, :queen], Position[:g, 7]],
+          [Piece[:white, :king], Position[:f, 6]],
+          [Piece[:black, :bishop], Position[:f, 8]] # can block queen
+        ]
+      )
+      gamedata = GameData.start.with(board: board, current_color: :black)
+      query = GameQuery.new(gamedata)
+
+      expect(query).not_to be_in_checkmate
+    end
+
+    it 'returns false when the king has a legal move' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Position[:h, 8]],
+          [Piece[:white, :queen], Position[:h, 6]],
+          [Piece[:white, :king], Position[:f, 6]]
+        ]
+      )
+      gamedata = GameData.start.with(board: board, current_color: :black)
+      query = GameQuery.new(gamedata)
+
+      expect(query).not_to be_in_checkmate
+    end
+
+    it 'returns false when the king is in stalemate' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Position[:h, 8]],
+          [Piece[:black, :rook], Position[:b, 6]],
+          [Piece[:white, :king], Position[:a, 1]],
+          [Piece[:white, :pawn], Position[:a, 2]],
+          [Piece[:white, :knight], Position[:b, 1]]
+
+        ]
+      )
+      gamedata = GameData.start.with(board: board, current_color: :black)
+      query = GameQuery.new(gamedata)
+
+      expect(query).not_to be_in_checkmate
+    end
+  end
+
+  describe '#in_stalemate?' do
+    it 'returns false when the king can move' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Position[:h, 8]],
+          [Piece[:white, :king], Position[:f, 6]]
+        ]
+      )
+      gamedata = GameData.start.with(board: board)
+      query = GameQuery.new(gamedata)
+
+      expect(query).not_to be_in_stalemate
+    end
+
+    it 'returns false when the king is in checkmate' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Position[:h, 8]],
+          [Piece[:white, :queen], Position[:g, 7]],
+          [Piece[:white, :king], Position[:f, 6]]
+        ]
+      )
+
+      gamedata = GameData.start.with(board: board, current_color: :black)
+      query = GameQuery.new(gamedata)
+
+      expect(query).not_to be_in_stalemate
+    end
+
+    it 'returns false when king cannot move but a pawn can' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Position[:h, 8]],
+          [Piece[:black, :pawn], Position[:a, 7]],
+          [Piece[:white, :queen], Position[:g, 6]],
+          [Piece[:white, :king], Position[:f, 6]]
+        ]
+      )
+
+      gamedata = GameData.start.with(board: board, current_color: :black)
+      query = GameQuery.new(gamedata)
+
+      expect(query).not_to be_in_stalemate
+    end
+
+    it 'returns true for stalemate (black)' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Position[:a, 8]],
+          [Piece[:white, :king], Position[:c, 1]],
+          [Piece[:white, :queen], Position[:c, 7]]
+
+        ]
+      )
+      gamedata = GameData.start.with(board: board, current_color: :black)
+      query = GameQuery.new(gamedata)
+
+      expect(query).to be_in_stalemate
+    end
+
+    it 'returns true for stalemate (white)' do
+      board = fill_board(
+        [
+          [Piece[:white, :king], Position[:a, 8]],
+          [Piece[:black, :king], Position[:c, 1]],
+          [Piece[:black, :queen], Position[:c, 7]]
+
+        ]
+      )
+      gamedata = GameData.start.with(board: board)
+      query = GameQuery.new(gamedata)
+
+      expect(query).to be_in_stalemate
+    end
+
+    it 'returns true for more complex stalemate (white)' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Position[:g, 8]],
+          [Piece[:black, :bishop], Position[:a, 7]],
+          [Piece[:black, :pawn], Position[:f, 4]],
+          [Piece[:black, :pawn], Position[:h, 3]],
+          [Piece[:white, :king], Position[:h, 1]],
+          [Piece[:white, :pawn], Position[:h, 2]]
+        ]
+      )
+      gamedata = GameData.start.with(board: board)
+      query = GameQuery.new(gamedata)
+
+      expect(query).to be_in_stalemate
+    end
+
+    it 'returns true for more complex stalemate (black)' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Position[:a, 3]],
+          [Piece[:black, :pawn], Position[:a, 4]],
+          [Piece[:white, :king], Position[:b, 1]],
+          [Piece[:white, :rook], Position[:b, 8]],
+          [Piece[:white, :rook], Position[:d, 4]]
+        ]
+      )
+      gamedata = GameData.start.with(board: board, current_color: :black)
+      query = GameQuery.new(gamedata)
+
+      expect(query).to be_in_stalemate
     end
   end
 end
