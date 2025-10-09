@@ -10,9 +10,11 @@ require 'immutable'
 
 RSpec.describe GameQuery do
   describe '#piece_attacking?' do
+    # TODO
   end
 
   describe '#piece_can_move?' do
+    # TODO
   end
 
   describe '#in_check?' do
@@ -31,7 +33,10 @@ RSpec.describe GameQuery do
           MovePieceEvent[Position[:f, 1], Position[:e, 2], Piece[:white, :bishop]]
         ]
 
-        state = event_history.reduce(start_state) { |state, event| state.apply_events([event]) }
+        state = event_history.reduce(GameState.new(data:
+        GameData.start.with(castling_rights: CastlingRights.none))) do |state, event|
+          state.apply_events([event])
+        end
 
         expect(state.query).not_to be_in_check
       end
@@ -47,7 +52,8 @@ RSpec.describe GameQuery do
           ]
         )
 
-        gamedata = GameData.start.with(board: board, en_passant_target: Position[:d, 6])
+        gamedata = GameData.start.with(board: board, en_passant_target: Position[:d, 6],
+                                       castling_rights: CastlingRights.none)
         state = GameState.new(data: gamedata)
 
         expect(state.query).not_to be_in_check
@@ -63,7 +69,7 @@ RSpec.describe GameQuery do
           ]
         )
 
-        gamedata = GameData.start.with(board: board)
+        gamedata = GameData.start.with(board: board, castling_rights: CastlingRights.none)
         state = GameState.new(data: gamedata)
         expect(state.query).not_to be_in_check
       end
@@ -79,7 +85,7 @@ RSpec.describe GameQuery do
           ]
         )
 
-        gamedata = GameData.start.with(board: board)
+        gamedata = GameData.start.with(board: board, castling_rights: CastlingRights.none)
         state = GameState.new(data: gamedata)
         expect(state.query).to be_in_check(:white)
       end
@@ -93,7 +99,7 @@ RSpec.describe GameQuery do
           ]
         )
 
-        gamedata = GameData.start.with(board: board)
+        gamedata = GameData.start.with(board: board, castling_rights: CastlingRights.none)
         state = GameState.new(data: gamedata)
         expect(state.query).to be_in_check(:white)
       end
@@ -107,7 +113,7 @@ RSpec.describe GameQuery do
           ]
         )
 
-        gamedata = GameData.start.with(board: board, current_color: :black)
+        gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
         state = GameState.new(data: gamedata)
         expect(state.query).to be_in_check(:black)
       end
@@ -124,7 +130,7 @@ RSpec.describe GameQuery do
           ]
         )
 
-        gamedata = GameData.start.with(board: board)
+        gamedata = GameData.start.with(board: board, castling_rights: CastlingRights.none)
         state = GameState.new(data: gamedata)
         expect(state.query).not_to be_in_check
       end
@@ -138,7 +144,7 @@ RSpec.describe GameQuery do
           ]
         )
 
-        gamedata = GameData.start.with(board: board)
+        gamedata = GameData.start.with(board: board, castling_rights: CastlingRights.none)
         state = GameState.new(data: gamedata)
         expect(state.query).not_to be_in_check
       end
@@ -153,7 +159,7 @@ RSpec.describe GameQuery do
           ]
         )
 
-        gamedata = GameData.start.with(board: board, current_color: :black)
+        gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
         state = GameState.new(data: gamedata)
         expect(state.query).not_to be_in_check
       end
@@ -170,7 +176,7 @@ RSpec.describe GameQuery do
           ]
         )
 
-        gamedata = GameData.start.with(board: board)
+        gamedata = GameData.start.with(board: board, castling_rights: CastlingRights.none)
         state = GameState.new(data: gamedata)
         expect(state.query).to be_in_check(:white)
       end
@@ -187,7 +193,7 @@ RSpec.describe GameQuery do
             [Piece[:white, :king], Position[:e, 1]]
           ]
         )
-        gamedata = GameData.start.with(board: board)
+        gamedata = GameData.start.with(board: board, castling_rights: CastlingRights.none)
         state = GameState.new(data: gamedata)
 
         # Move the blocking pawn away
@@ -209,7 +215,7 @@ RSpec.describe GameQuery do
         ]
       )
 
-      gamedata = GameData.start.with(board: board, current_color: :black)
+      gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).not_to be_in_checkmate
@@ -223,7 +229,11 @@ RSpec.describe GameQuery do
         MovePieceEvent[Position[:d, 8], Position[:h, 4], Piece[:black, :queen]]
       ]
 
-      state = event_history.reduce(start_state) { |state, event| state.apply_events([event]) }
+      state = event_history.reduce(GameState.new(
+                                     data: GameData.start.with(castling_rights: CastlingRights.none)
+                                   )) do |state, event|
+        state.apply_events([event])
+      end
 
       expect(state.query).to be_in_checkmate
     end
@@ -237,7 +247,7 @@ RSpec.describe GameQuery do
         ]
       )
 
-      gamedata = GameData.start.with(board: board, current_color: :black)
+      gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).to be_in_checkmate
@@ -252,7 +262,7 @@ RSpec.describe GameQuery do
         ]
       )
 
-      gamedata = GameData.start.with(board: board, current_color: :white)
+      gamedata = GameData.start.with(board: board, current_color: :white, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).not_to be_in_checkmate
@@ -269,7 +279,7 @@ RSpec.describe GameQuery do
         ]
       )
 
-      gamedata = GameData.start.with(board: board, current_color: :black)
+      gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).to be_in_checkmate
@@ -288,7 +298,7 @@ RSpec.describe GameQuery do
         ]
       )
 
-      gamedata = GameData.start.with(board: board, current_color: :black)
+      gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).to be_in_checkmate
@@ -303,7 +313,7 @@ RSpec.describe GameQuery do
           [Piece[:black, :bishop], Position[:f, 8]] # can block queen
         ]
       )
-      gamedata = GameData.start.with(board: board, current_color: :black)
+      gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).not_to be_in_checkmate
@@ -317,7 +327,7 @@ RSpec.describe GameQuery do
           [Piece[:white, :king], Position[:f, 6]]
         ]
       )
-      gamedata = GameData.start.with(board: board, current_color: :black)
+      gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).not_to be_in_checkmate
@@ -331,13 +341,161 @@ RSpec.describe GameQuery do
           [Piece[:white, :king], Position[:a, 1]],
           [Piece[:white, :pawn], Position[:a, 2]],
           [Piece[:white, :knight], Position[:b, 1]]
-
         ]
       )
-      gamedata = GameData.start.with(board: board, current_color: :black)
+      gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).not_to be_in_checkmate
+    end
+
+    context 'for special moves - castling, promotion, enpassant' do
+      it 'returns false when castling is available' do
+        board = fill_board [
+          [Piece[:black, :king], Position[:h, 8]],
+          [Piece[:black, :queen], Position[:c, 2]],
+          [Piece[:black, :bishop], Position[:c, 3]],
+          [Piece[:black, :rook], Position[:f, 7]],
+          [Piece[:white, :king], Position[:e, 1]],
+          [Piece[:white, :rook], Position[:h, 1]]
+        ]
+        gamedata = GameData.start.with(board: board, castling_rights: CastlingRights[
+          CastlingSide[true, false],
+          CastlingSide.none
+        ])
+        query = GameQuery.new(gamedata)
+
+        expect(query).not_to be_in_checkmate
+      end
+
+      it 'returns true when castling is available but still results in check' do
+        board = fill_board [
+          [Piece[:black, :king], Position[:h, 8]],
+          [Piece[:black, :queen], Position[:c, 2]],
+          [Piece[:black, :bishop], Position[:c, 3]],
+          [Piece[:black, :rook], Position[:f, 7]],
+          [Piece[:black, :rook], Position[:g, 4]],
+          [Piece[:white, :king], Position[:e, 1]],
+          [Piece[:white, :rook], Position[:h, 1]]
+        ]
+        gamedata = GameData.start.with(board: board, castling_rights: CastlingRights[
+          CastlingSide[true, false],
+          CastlingSide.none
+        ])
+        query = GameQuery.new(gamedata)
+
+        expect(query).to be_in_checkmate
+      end
+
+      it 'returns false when block by promotion is available' do
+        board = fill_board [
+          [Piece[:black, :king], Position[:h, 8]],
+          [Piece[:black, :queen], Position[:g, 8]],
+          [Piece[:black, :rook], Position[:g, 7]],
+          [Piece[:white, :king], Position[:a, 8]],
+          [Piece[:white, :pawn], Position[:b, 7]]
+        ]
+
+        gamedata = GameData.start.with(board: board, castling_rights: CastlingRights[
+    CastlingSide[true, false],
+    CastlingSide.none
+    ])
+        query = GameQuery.new(gamedata)
+
+        expect(query).not_to be_in_checkmate
+      end
+
+      it 'returns true when checkmate is delivered via promotion' do
+        board = fill_board [
+          [Piece[:black, :king], Position[:h, 8]],
+          [Piece[:white, :king], Position[:f, 7]],
+          [Piece[:white, :pawn], Position[:g, 7]]
+        ]
+        gamedata = GameData.start.with(board: board, current_color: :white, castling_rights: CastlingRights.none)
+        query = GameQuery.new(gamedata)
+
+        state_after_promo = query.state.apply_events(
+          [MovePieceEvent[Position[:g, 7], Position[:g, 8], Piece[:white, :pawn]],
+           PromotePieceEvent[:queen]]
+        )
+
+        expect(state_after_promo.query).to be_in_checkmate
+      end
+
+      it 'returns false when en passant can block a checkmate' do
+        board = fill_board(
+          [
+            [Piece[:black, :king], Position[:f, 6]],
+            [Piece[:black, :knight], Position[:f, 4]],
+            [Piece[:black, :rook], Position[:b, 3]],
+            [Piece[:black, :pawn], Position[:g, 5]], # moved last
+            [Piece[:white, :pawn], Position[:f, 5]],
+            [Piece[:white, :pawn], Position[:g, 4]],
+            [Piece[:white, :king], Position[:h, 4]]
+          ]
+        )
+        gamedata = GameData.start.with(
+          board: board,
+          castling_rights: CastlingRights.none,
+          en_passant_target: Position[:g, 6]
+        )
+        query = GameQuery.new(gamedata)
+
+        expect(query).not_to be_in_checkmate
+      end
+
+      it 'returns false when black can capture en passant to escape mate' do
+        board = fill_board(
+          [
+            [Piece[:black, :king],  Position[:a, 5]],
+            [Piece[:black, :pawn],  Position[:a, 6]],
+            [Piece[:black, :pawn],  Position[:b, 6]],
+            [Piece[:black, :pawn],  Position[:b, 5]],
+            [Piece[:black, :pawn],  Position[:a, 4]],  # can capture en passant to b3
+            [Piece[:white, :pawn],  Position[:b, 4]],  # just moved b2-b4, checking a5
+            [Piece[:white, :knight], Position[:d, 3]],
+            [Piece[:white, :king],  Position[:h, 1]]
+          ]
+        )
+
+        gamedata = GameData.start.with(
+          board: board,
+          current_color: :black,
+          castling_rights: CastlingRights.none,
+          en_passant_target: Position[:b, 3] # square passed over by b2-b4
+        )
+        query = GameQuery.new(gamedata)
+
+        expect(query).to be_in_check
+        expect(query).not_to be_in_checkmate
+      end
+
+      it 'returns true when en passant target is missing (no escape)' do
+        board = fill_board(
+          [
+            [Piece[:black, :king],  Position[:a, 5]],
+            [Piece[:black, :pawn],  Position[:a, 6]],
+            [Piece[:black, :pawn],  Position[:b, 6]],
+            [Piece[:black, :pawn],  Position[:b, 5]],
+            [Piece[:black, :pawn],  Position[:a, 4]],  # would-be en passant capturer
+            [Piece[:white, :pawn],  Position[:b, 4]],  # pawn on b4 checking a5
+            [Piece[:white, :knight], Position[:d, 3]],
+            [Piece[:white, :king], Position[:h, 1]]
+          ]
+        )
+
+        gamedata = GameData.start.with(
+          board: board,
+          current_color: :black,
+          castling_rights: CastlingRights.none,
+          en_passant_target: nil
+        )
+
+        query = GameQuery.new(gamedata)
+
+        expect(query).to be_in_check
+        expect(query).to be_in_checkmate
+      end
     end
   end
 
@@ -349,7 +507,7 @@ RSpec.describe GameQuery do
           [Piece[:white, :king], Position[:f, 6]]
         ]
       )
-      gamedata = GameData.start.with(board: board)
+      gamedata = GameData.start.with(board: board, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).not_to be_in_stalemate
@@ -364,7 +522,7 @@ RSpec.describe GameQuery do
         ]
       )
 
-      gamedata = GameData.start.with(board: board, current_color: :black)
+      gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).not_to be_in_stalemate
@@ -380,9 +538,8 @@ RSpec.describe GameQuery do
         ]
       )
 
-      gamedata = GameData.start.with(board: board, current_color: :black)
+      gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
-
       expect(query).not_to be_in_stalemate
     end
 
@@ -395,7 +552,7 @@ RSpec.describe GameQuery do
 
         ]
       )
-      gamedata = GameData.start.with(board: board, current_color: :black)
+      gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).to be_in_stalemate
@@ -410,7 +567,7 @@ RSpec.describe GameQuery do
 
         ]
       )
-      gamedata = GameData.start.with(board: board)
+      gamedata = GameData.start.with(board: board, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).to be_in_stalemate
@@ -427,7 +584,7 @@ RSpec.describe GameQuery do
           [Piece[:white, :pawn], Position[:h, 2]]
         ]
       )
-      gamedata = GameData.start.with(board: board)
+      gamedata = GameData.start.with(board: board, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).to be_in_stalemate
@@ -443,7 +600,7 @@ RSpec.describe GameQuery do
           [Piece[:white, :rook], Position[:d, 4]]
         ]
       )
-      gamedata = GameData.start.with(board: board, current_color: :black)
+      gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
       expect(query).to be_in_stalemate

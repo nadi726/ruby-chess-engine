@@ -2,10 +2,19 @@
 
 require 'immutable'
 require_relative 'game_state'
+require_relative 'no_legal_moves_helper'
 
 # Provides derived information about the current game state.
-# Centralizes logic for answering queries such as possible movement, attacks, or draw conditions.
+#
+# GameQuery acts as the single entry point for all game-related queries.
+# It exposes methods for:
+# - **Check and checkmate detection** (`in_check?`, `in_checkmate?`)
+# - **draw detection** ( `must_draw?`, `in_draw?`, and detailed draw queries like `in_stalemate?` )
+# - **Piece interactions** (`piece_attacking?`, `piece_can_move?`)
+# - **King and piece lookup** (`current_pieces`, `other_pieces`)
 class GameQuery
+  include NoLegalMovesHelper
+
   attr_reader :data, :move_history, :position_signatures, :board
 
   def initialize(data, move_history = Immutable::List[], position_signatures = Immutable::Hash[])
@@ -35,7 +44,7 @@ class GameQuery
 
   # returns true if the king of the specified color is in check
   def in_check?(color = @data.current_color)
-    _k, king_pos = king_with_pos(color)
+    _k, king_pos = @board.pieces_with_positions(color: color, type: :king).first
     other_pieces_positions = @board.pieces_with_positions(color: color == :white ? :black : :white)
     other_pieces_positions.any? do |_, piece_pos|
       piece_attacking?(piece_pos, king_pos)
@@ -47,10 +56,25 @@ class GameQuery
     in_check?(color) && no_legal_moves?(color)
   end
 
+  # Returns true if the game must end in a draw
+  def must_draw?
+    in_stalemate? || insufficient_material?
+  end
+
+  # returns true if the current player can request a draw
+  def can_draw?
+    threefold_repetition? || fifty_move_rule?
+  end
+
   # returns true if the game is in stalemate
   def in_stalemate?
     !in_check? && no_legal_moves?(@data.current_color)
   end
+
+  # Optional detailed draw queries
+  def insufficient_material?; end
+  def threefold_repetition?; end
+  def fifty_move_rule?; end
 
   def current_pieces
     @board.find_pieces(color: @data.current_color)
@@ -62,74 +86,5 @@ class GameQuery
 
   def all_pieces
     board.find_pieces
-  end
-
-  def king_with_pos(color)
-    @board.pieces_with_positions(color: color, type: :king).first
-  end
-
-  private
-
-  # Returns true if there are no legal moves for the given color
-  def no_legal_moves?(color)
-    each_pseudo_legal_event_sequence(color).all? do |events|
-      state.apply_events(events).query.in_check?(color)
-    end
-  end
-
-  # A pseudo-legal move is a move that is valid according to the rules of chess,
-  # except that it does not account for whether the move would leave the king in check.
-  def each_pseudo_legal_event_sequence(color, &)
-    return enum_for(__method__, color) unless block_given?
-
-    board.pieces_with_positions(color: color).each do |piece, pos|
-      each_move_only_event_sequence(piece, pos, &)
-      each_capture_event_sequence(piece, pos, &)
-      each_promotion_event_sequence(piece, pos, &)
-    end
-
-    each_enpassant_event_sequence(color, &)
-    each_castling_event_sequence(color, &)
-  end
-
-  def each_move_only_event_sequence(piece, pos)
-    piece.moves(board, pos).each do |target_pos|
-      next unless piece_can_move?(pos, target_pos) && !move_should_promote?(piece, target_pos)
-
-      yield [MovePieceEvent[pos, target_pos, piece]]
-    end
-  end
-
-  def each_capture_event_sequence(piece, pos)
-    piece.threatened_squares(board, pos).each do |target_pos|
-      next unless piece_attacking?(pos, target_pos) && !move_should_promote?(piece, target_pos)
-
-      move_event = MovePieceEvent[pos, target_pos, piece]
-      remove_event = RemovePieceEvent[target_pos, board.get(target_pos)]
-      yield [move_event, remove_event]
-    end
-  end
-
-  def each_promotion_event_sequence(piece, pos)
-    # Nothing yet
-    enum_for(__method__, piece, pos) unless block_given?
-  end
-
-  def each_enpassant_event_sequence(color)
-    # Nothing yet
-    enum_for(__method__, color) unless block_given?
-  end
-
-  def each_castling_event_sequence(color)
-    enum_for(__method__, color) unless block_given?
-    # sides = @data.castling_rights.get_sidet)(color)
-    # valid_sides = %i[kingside queenside].select { sides.public_send(it) }
-    # valid_sides.map { CastlingEvent[color, it] }
-  end
-
-  def move_should_promote?(piece, target_pos)
-    piece.type == :pawn &&
-      ((piece.color == :white && target_pos.rank == 8) ||
-       (piece.color == :black && target_pos.rank == 1))
   end
 end
