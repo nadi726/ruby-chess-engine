@@ -61,7 +61,7 @@ class GameQuery
     in_stalemate? || insufficient_material?
   end
 
-  # returns true if the current player can request a draw
+  # returns true if the current player can request a draw to force the game to end
   def can_draw?
     threefold_repetition? || fifty_move_rule?
   end
@@ -71,10 +71,25 @@ class GameQuery
     !in_check? && no_legal_moves?(@data.current_color)
   end
 
-  # Optional detailed draw queries
-  def insufficient_material?; end
-  def threefold_repetition?; end
-  def fifty_move_rule?; end
+  # According to FIDE rules, as listed here:
+  # https://www.chess.com/terms/draw-chess#dead-position
+  def insufficient_material?
+    white_types = @board.find_pieces(color: :white).map(&:type)
+    black_types = @board.find_pieces(color: :black).map(&:type)
+
+    INSUFFICIENT_COMBINATIONS.any? do |combo|
+      match_combination?(white_types, black_types, combo) ||
+        match_combination?(black_types, white_types, combo)
+    end
+  end
+
+  def threefold_repetition?
+    @position_signatures.fetch(@data.position_signature, 0) >= 3
+  end
+
+  def fifty_move_rule?
+    @data.halfmove_clock >= 100
+  end
 
   def current_pieces
     @board.find_pieces(color: @data.current_color)
@@ -86,5 +101,34 @@ class GameQuery
 
   def all_pieces
     board.find_pieces
+  end
+
+  INSUFFICIENT_COMBINATIONS = [
+    [%i[king], %i[king]],
+    [%i[king bishop], %i[king]],
+    [%i[king knight], %i[king]],
+    [%i[king bishop], %i[king bishop], :same_color_bishops]
+  ].freeze
+
+  private
+
+  # Match piece type combination for #insufficient_material?
+  def match_combination?(types1, types2, combo)
+    pattern1, pattern2, condition = combo
+    return false unless types1.sort == pattern1.sort && types2.sort == pattern2.sort
+
+    condition == :same_color_bishops ? same_color_bishops? : true
+  end
+
+  # Returns true if both sides have bishops on the same color squares
+  # (only relevant when each side has exactly one bishop)
+  # Used in #insufficient_material?
+  def same_color_bishops?
+    bishop_pos1 = @board.pieces_with_positions(color: :white, type: :bishop).first&.last
+    bishop_pos2 = @board.pieces_with_positions(color: :black, type: :bishop).first&.last
+    return false unless bishop_pos1 && bishop_pos2
+
+    file_distance, rank_distance = bishop_pos1.distance(bishop_pos2)
+    (file_distance + rank_distance).even?
   end
 end

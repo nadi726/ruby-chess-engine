@@ -606,4 +606,138 @@ RSpec.describe GameQuery do
       expect(query).to be_in_stalemate
     end
   end
+
+  describe '#insufficient_material?' do
+    def query_for(pieces)
+      board = fill_board(pieces)
+      GameQuery.new(GameData.start.with(castling_rights: CastlingRights.none, board: board))
+    end
+
+    it 'returns true for king vs king' do
+      query = query_for([
+                          [Piece[:white, :king], Position[:e, 1]],
+                          [Piece[:black, :king], Position[:e, 8]]
+                        ])
+      expect(query).to be_insufficient_material
+    end
+
+    it 'returns true for king and bishop vs king' do
+      query = query_for([
+                          [Piece[:white, :king], Position[:e, 1]],
+                          [Piece[:white, :bishop], Position[:c, 1]],
+                          [Piece[:black, :king], Position[:e, 8]]
+                        ])
+      expect(query).to be_insufficient_material
+    end
+
+    it 'returns true for king and knight vs king' do
+      query = query_for([
+                          [Piece[:white, :king], Position[:e, 1]],
+                          [Piece[:white, :knight], Position[:g, 1]],
+                          [Piece[:black, :king], Position[:e, 8]]
+                        ])
+      expect(query).to be_insufficient_material
+    end
+
+    it 'returns true for king vs king and bishop (color swapped)' do
+      query = query_for([
+                          [Piece[:white, :king], Position[:e, 1]],
+                          [Piece[:black, :king], Position[:e, 8]],
+                          [Piece[:black, :bishop], Position[:c, 8]]
+                        ])
+      expect(query).to be_insufficient_material
+    end
+
+    it 'returns true for both sides having bishops on same color squares' do
+      query = query_for([
+                          [Piece[:white, :king], Position[:e, 1]],
+                          [Piece[:black, :king], Position[:e, 8]],
+                          [Piece[:white, :bishop], Position[:c, 1]], # dark square
+                          [Piece[:black, :bishop], Position[:a, 3]]  # dark square
+                        ])
+      expect(query).to be_insufficient_material
+    end
+
+    it 'returns false for both sides having bishops on opposite colors' do
+      query = query_for([
+                          [Piece[:white, :king], Position[:e, 1]],
+                          [Piece[:black, :king], Position[:e, 8]],
+                          [Piece[:white, :bishop], Position[:c, 1]], # dark square
+                          [Piece[:black, :bishop], Position[:b, 3]]  # light square
+                        ])
+      expect(query).not_to be_insufficient_material
+    end
+
+    it 'returns false when a pawn is present' do
+      query = query_for([
+                          [Piece[:white, :king], Position[:e, 1]],
+                          [Piece[:white, :pawn], Position[:d, 4]],
+                          [Piece[:black, :king], Position[:e, 8]]
+                        ])
+      expect(query).not_to be_insufficient_material
+    end
+
+    it 'returns false when a rook is present' do
+      query = query_for([
+                          [Piece[:white, :king], Position[:e, 1]],
+                          [Piece[:black, :king], Position[:e, 8]],
+                          [Piece[:black, :rook], Position[:a, 8]]
+                        ])
+      expect(query).not_to be_insufficient_material
+    end
+  end
+
+  describe '#fifty_move_rule?' do
+    it 'returns true when halfmove clock reaches 100' do
+      data = GameData.start.with(castling_rights: CastlingRights.none, halfmove_clock: 100)
+      query = GameQuery.new(data)
+
+      expect(query.fifty_move_rule?).to be true
+    end
+
+    it 'returns false when halfmove clock is below 100' do
+      data = GameData.start.with(castling_rights: CastlingRights.none, halfmove_clock: 99)
+      query = GameQuery.new(data)
+      expect(query.fifty_move_rule?).to be false
+    end
+  end
+
+  describe '#threefold_repetition?' do
+    let(:data) do
+      GameData.start.with(board: fill_board(
+        [
+          [Piece[:black, :king], Position[:e, 8]],
+          [Piece[:black, :rook], Position[:e, 7]],
+          [Piece[:white, :rook], Position[:f, 2]],
+          [Piece[:white, :bishop], Position[:c, 6]],
+          [Piece[:white, :knight], Position[:b, 7]],
+          [Piece[:white, :king], Position[:h, 1]]
+        ]
+      ))
+    end
+
+    it 'returns true for the current position being repeated 3 times' do
+      position_signatures = Immutable::Hash[data.position_signature => 3, GameData.start.position_signature => 1]
+      query = GameQuery.new(data, [], position_signatures)
+      expect(query).to be_threefold_repetition
+    end
+    it 'returns false for the current position being repeated less than 3 times' do
+      position_signatures = Immutable::Hash[data.position_signature => 2, GameData.start.position_signature => 1]
+      query = GameQuery.new(data, [], position_signatures)
+      expect(query).not_to be_threefold_repetition
+    end
+
+    it 'returns false for the for a previous position being repeated 3 or more times' do
+      position_signatures = Immutable::Hash[data.position_signature => 5, GameData.start.position_signature => 1]
+      current_data = GameData.start.with(board: fill_board(
+        [
+          [Piece[:white, :king], Position[:e, 1]],
+          [Piece[:black, :king], Position[:e, 8]],
+          [Piece[:black, :rook], Position[:a, 8]]
+        ]
+      ))
+      query = GameQuery.new(current_data, [], position_signatures)
+      expect(query).not_to be_threefold_repetition
+    end
+  end
 end
