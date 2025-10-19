@@ -10,7 +10,7 @@ require_relative 'event_result'
 # event list (suitable for application to the GameState), or returns an error.
 #
 # This class defines shared behavior and lifecycle:
-# 1. `#handle` — implemented by subclasses, checks and expands the event sequence.
+# 1. `#process` — implemented by subclasses, checks and expands the event sequence.
 # 2. `#post_process` — generic logic applied to all valid results (e.g. check status).
 #
 # Subclasses must implement `#handle`.

@@ -26,7 +26,7 @@ require 'immutable'
 # The design avoids mutable state—each change produces a new GameState, leaving previous states untouched.
 # This makes reasoning about the engine easier and enables features like undo and state comparison.
 class GameState
-  attr_reader :query
+  attr_reader :query, :data
 
   # The state at the game's start
   def self.start
