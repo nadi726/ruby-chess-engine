@@ -3,7 +3,7 @@
 # Core components
 require_relative 'game_state/game_state'
 require_relative 'event_handlers/init'
-require_relative 'parser'
+require_relative 'parsers/identity_parser'
 
 # The Engine is the central coordinator and interpreter of the chess game.
 #
@@ -18,9 +18,9 @@ require_relative 'parser'
 #   `#on_engine_update(turn_result)`
 # which is called after each turn or state change.
 class Engine
-  def initialize
+  def initialize(parser = nil)
     @state = GameState.new
-    @parser = nil # placeholder for the notation parser - TODO
+    @parser = parser || IdentityParser.new
     @endgame_status = nil # one of - nil, :white_checkmate, :black_checkmate, :draw
     @draw_request = nil # one of - nil, :white, :black
     @listeners = []
@@ -92,7 +92,7 @@ class Engine
   # The resulting event sequence is not necessarily valid in game context,
   # only syntactically valid. Returns nil if parsing fails.
   def parse_notation(notation)
-    # TODO: - implement notation parser
+    @parser.parse(notation, @state.query)
   end
 
   # Executes a given event sequence.

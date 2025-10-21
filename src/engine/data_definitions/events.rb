@@ -70,6 +70,8 @@ RemovePieceEvent = StateEvent.define(:position, :piece) do
   end
 end
 
+# TODO: - potentially remove those
+
 # A player is in check.
 CheckEvent = StateEvent.define(:color)
 
