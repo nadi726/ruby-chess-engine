@@ -124,6 +124,19 @@ class Board
     rows.join("\n")
   end
 
+  def ==(other)
+    other.is_a?(Board) && pieces_with_positions == other.pieces_with_positions
+  end
+
+  def eql?(other)
+    self == other
+  end
+
+  def hash
+    # Don't use the exact same hash as #pieces_with_positions to avoid clashes
+    [pieces_with_positions, 0].hash
+  end
+
   private
 
   def position_to_index(position)

@@ -106,6 +106,10 @@ class Engine
   # - Returns a TurnResult.failure(:invalid_event_sequence)
   def interpret_events(events) # rubocop:disable Metrics/MethodLength
     primary_event, *extras = events
+    unless primary_event.is_a?(ActionEvent)
+      raise ArgumentError, "Parser contract violated: first event must be ActionEvent, got #{primary_event.class}"
+    end
+
     event_handler = event_handler_for(primary_event, extras, @state.query)
     result = event_handler.process
     return TurnResult.failure(:invalid_event_sequence) if result.failure?
@@ -132,9 +136,9 @@ class Engine
   # Returns one of :white_checkmate, :black_checkmate, :draw, or nil.
   def detect_endgame_status
     query = @state.query
-    if query.checkmate?(:white)
+    if query.in_checkmate?(:white)
       :white_checkmate
-    elsif query.checkmate?(:black)
+    elsif query.in_checkmate?(:black)
       :black_checkmate
     elsif query.must_draw?
       :draw
@@ -166,7 +170,7 @@ TurnResult = Data.define(:events, :game_query, :in_check, :endgame_status, :erro
     new(events.freeze, game_query, in_check, endgame_status, nil)
   end
 
-  def self.failure(error:)
+  def self.failure(error)
     new(nil, nil, nil, nil, error)
   end
 

@@ -9,7 +9,7 @@ HANDLER_MAP = {
 }.freeze
 
 # Factory function for creating an event handler instance.
-def event_handler_for(event, query, extras = [])
+def event_handler_for(event, extras, query)
   handler_class = HANDLER_MAP[event.class]
   raise "No handler for #{event.class}" unless handler_class
 

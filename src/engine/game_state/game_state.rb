@@ -14,7 +14,7 @@ require 'immutable'
 # the board layout, which player's turn it is, move history, castling rights, en passant target, and more.
 #
 # Responsibilities:
-# - Answer queries about the current position (through the `query` object).
+# - Answer queries about the current position (through the `GameQuery` object).
 # - Produce the next GameState by applying a list of valid events (`#apply_events`).
 #
 # Internal structure:
@@ -23,7 +23,7 @@ require 'immutable'
 # - position_signatures: An immutable hash counting position signatures, used for detecting repetition.
 # - query: A GameQuery object that provides a high-level interface for interrogating the state.
 #
-# The design avoids mutable state—each change produces a new GameState, leaving previous states untouched.
+# The design avoids mutable state — each change produces a new `GameState`, leaving previous states untouched.
 # This makes reasoning about the engine easier and enables features like undo and state comparison.
 class GameState
   attr_reader :query, :data
