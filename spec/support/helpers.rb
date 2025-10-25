@@ -23,13 +23,13 @@ def fill_board_by_position(white_positions, black_positions)
   # Place white pieces
   white_positions.each do |pos|
     idx = (pos.to_a[0] * Board::SIZE) + pos.to_a[1]
-    squares[idx] = double('Piece', color: :white)
+    squares[idx] = Piece[:white, :pawn]
   end
 
   # Place black pieces
   black_positions.each do |pos|
     idx = (pos.to_a[0] * Board::SIZE) + pos.to_a[1]
-    squares[idx] = double('Piece', color: :black)
+    squares[idx] = Piece[:black, :pawn]
   end
 
   Board.from_flat_array(squares)

@@ -6,6 +6,7 @@ require_relative 'game_query'
 require_relative '../data_definitions/piece'
 require_relative '../data_definitions/position'
 require_relative '../data_definitions/castling_data'
+require_relative '../data_definitions/events'
 require 'immutable'
 
 # Represents the immutable state of the game at a specific point in time.
@@ -21,7 +22,7 @@ require 'immutable'
 # - data: A GameData object representing the current game data
 # - move_history: An immutable list of event-lists. Each inner list represents the events that made up a single turn.
 # - position_signatures: An immutable hash counting position signatures, used for detecting repetition.
-# - query: A GameQuery object that provides a high-level interface for interrogating the state.
+# - query: A `GameQuery` object that provides a high-level interface for interrogating the state.
 #
 # The design avoids mutable state — each change produces a new `GameState`, leaving previous states untouched.
 # This makes reasoning about the engine easier and enables features like undo and state comparison.
@@ -43,6 +44,8 @@ class GameState
   # Process a sequence of events to produce the next GameState
   # Assumes the event sequence is valid.
   def apply_events(events)
+    raise ArgumentError unless events.is_a?(Enumerable) && events.all? { it.is_a?(GameEvent) }
+
     events = Immutable.from events
     signature_count = @position_signatures.fetch(@data.position_signature, 0)
     signatures = @position_signatures.put(@data.position_signature, signature_count + 1)
@@ -64,9 +67,14 @@ class GameState
       castling_rights: compute_castling_rights(@data.castling_rights, @data.current_color, events),
       halfmove_clock: compute_halfmove_clock(@data.halfmove_clock, events)
     )
+  rescue InvalidEventSequenceError
+    raise
+  rescue InvariantViolationError => e
+    raise InvalidEventSequenceError,
+          "Invariant violation during event application: #{e.class} - #{e.message}\nSequence: #{events.to_a.inspect}"
   end
 
-  def advance_board(board, events)
+  def advance_board(board, events) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
     case main_event(events)
     in MovePieceEvent => e
       advance_with_move_piece_event(board, events, e)
@@ -74,12 +82,10 @@ class GameState
       board.remove(e.captured_position).move(e.from, e.to)
     in CastlingEvent => e
       board.move(e.king_from, e.king_to).move(e.rook_from, e.rook_to)
-
-    # TODO: Confirm this is the intended behaivor
     in nil
-      raise "No ActionEvent found in event sequence: #{events.map(&:class)}"
+      raise InvalidEventSequenceError, "No ActionEvent found in event sequence: #{events.to_a.inspect}"
     else
-      raise "Unhandled event type: #{events.first.class}"
+      raise InvalidEventSequenceError, "Unhandled event type: #{events.first.class}"
     end
   end
 
@@ -103,7 +109,10 @@ class GameState
     return unless move
 
     # Return the square passed over
-    Position[move.from.file, (move.from.rank + move.to.rank) / 2]
+    pos = Position[move.from.file, (move.from.rank + move.to.rank) / 2]
+    raise InvariantViolationError, "Invalid en passant target: #{pos}" unless pos.valid?
+
+    pos
   end
 
   def compute_castling_rights(previous_rights, color, events)

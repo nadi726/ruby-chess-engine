@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
-# The Position class is used to encapsulate the file (column) and rank (row) of a square,
+require_relative '../errors'
+
+# The `Position` class is used to encapsulate the file (column) and rank (row) of a square,
 # and provides methods for validation, conversion, and manipulation of positions within the chess engine.
-# A Position may be invalid (e.g. off the board).
-# It is the responsibility of the engine to check validity using the valid? method when necessary.
+# An invalid `Position` (e.g. off the board) may be created,
+# but must not be used, and doing so will result in an error.
+# It is the responsibility of the whoever uses the object to check validity using the `#valid?` method before use.
 class Position
   FILES = (:a..:h).to_a.freeze
   RANKS = (1..8).to_a.freeze
@@ -23,6 +26,8 @@ class Position
 
   # Produces a standard array representation of [row, column]
   def to_a
+    return InvalidPositionError unless valid?
+
     [@rank - 1, FILES.index(@file)]
   end
 
@@ -34,9 +39,11 @@ class Position
   end
 
   # Returns the distance between self and the given Position object.
-  # The result is of the format [file_distance, rank_distance]
-  # For exmaple, the distance from b2 to d2 is [2, 0]
+  # The result is of the format [file_distance, rank_distance].
+  # For example, the distance from b2 to d2 is [2, 0].
   def distance(other)
+    raise InvalidPositionError unless valid? && other&.valid?
+
     file_distance = (FILES.index(file) - FILES.index(other.file)).abs
     rank_distance = (rank - other.rank).abs
     [file_distance, rank_distance]

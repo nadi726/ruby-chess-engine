@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require_relative 'persistent_array'
+require_relative '../data_definitions/position'
+require_relative '../data_definitions/piece'
+require_relative '../errors'
 
 # Board is an immutable chessboard representation.
 # Each square is mapped to either a piece or nil, using Position objects for coordinates.
@@ -16,6 +19,7 @@ class Board
   # Each item should be a Piece or nil, representing the contents of that square.
   def self.from_flat_array(values)
     raise ArgumentError, 'Expected 64 elements' unless values.size == SIZE * SIZE
+    raise ArgumentError, 'Expected nil or Piece objects' unless values.all? { it.nil? || it.is_a?(Piece) }
 
     array = PersistentArray.from_values(values)
     new(array)
@@ -80,16 +84,16 @@ class Board
     from_index = position_to_index from
     piece = @array.get from_index
     to_index = position_to_index to
-    raise ArgumentError, 'No piece to move' if piece.nil?
-    raise ArgumentError, 'Destination is already occupied' unless @array.get(to_index).nil?
-    raise ArgumentError, 'Cannot move to the same position' if from == to
+    raise BoardManipulationError, 'No piece to move' if piece.nil?
+    raise BoardManipulationError, 'Destination is already occupied' unless @array.get(to_index).nil?
+    raise BoardManipulationError, 'Cannot move to the same position' if from == to
 
     Board.new(@array.set(from_index, nil).set(to_index, piece))
   end
 
   def remove(position)
     index = position_to_index position
-    raise ArgumentError, 'Position is unoccupied' if get(position).nil?
+    raise BoardManipulationError, 'Position is unoccupied' if get(position).nil?
 
     Board.new(@array.set(index, nil))
   end
@@ -97,8 +101,8 @@ class Board
   # Inserts the given piece to an empty position
   def insert(piece, position)
     index = position_to_index(position)
-    raise ArgumentError, 'Position is occupied' unless get(position).nil?
-    raise ArgumentError, 'Not a valid piece' unless valid_piece?(piece)
+    raise ArgumentError, 'Not a valid piece' unless piece.is_a?(Piece)
+    raise BoardManipulationError, 'Position is occupied' unless @array.get(index).nil?
 
     Board.new(@array.set(index, piece))
   end
@@ -140,7 +144,8 @@ class Board
   private
 
   def position_to_index(position)
-    raise ArgumentError, 'Invalid position' unless position.respond_to?(:valid?) && position.valid?
+    raise ArgumentError unless position.is_a?(Position)
+    raise InvalidPositionError unless position.valid?
 
     row, col = position.to_a
     (row * SIZE) + col
@@ -149,9 +154,5 @@ class Board
   def index_to_position(index)
     row, col = index.divmod(SIZE)
     Position.from_index(row, col)
-  end
-
-  def valid_piece?(piece)
-    piece.respond_to?(:type) && piece.respond_to?(:color)
   end
 end

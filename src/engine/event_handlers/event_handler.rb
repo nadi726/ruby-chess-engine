@@ -16,11 +16,10 @@ require_relative 'event_result'
 # Subclasses must implement `#handle`.
 # Consumers should only call `#process`.
 class EventHandler
-  attr_reader :query, :main, :extras, :from_piece
+  attr_reader :query, :main, :extras
 
   def initialize(query, main, extras)
     @query = query
-    @from_piece = @query.board.get(main.from)
     @main = main
     @extras = extras
   end
@@ -65,8 +64,17 @@ class EventHandler
     EventResult.failure error
   end
 
-  # Always use the to_piece method to access the memoized value.
-  # Do not access @to_piece directly to avoid uninitialized or stale values.
+  # Only for event handlers that should have them.
+  # Always use those methods to access the memoized value - do not access it directly.
+
+  # TODO: - autofill for events that miss this field
+  #         or decide it is the responsibility of the parser and return an error.
+  def from_piece
+    return nil unless main&.from
+
+    @from_piece ||= @query.board.get(main.from)
+  end
+
   def to_piece
     @to_piece ||= query.board.get(main.to)
   end

@@ -3,6 +3,7 @@
 require 'game_state/board'
 require 'data_definitions/position'
 require 'data_definitions/piece'
+require 'errors'
 
 RSpec.describe Board do
   let(:pieces) do
@@ -51,7 +52,7 @@ RSpec.describe Board do
       end
 
       it 'returns an error for position given, but invalid' do
-        expect { board.get(Position[:a, 12]) }.to raise_error(ArgumentError)
+        expect { board.get(Position[:a, 12]) }.to raise_error(InvalidPositionError)
       end
     end
   end
@@ -65,16 +66,16 @@ RSpec.describe Board do
       end
 
       it 'returns an error for position given, but invalid' do
-        expect { board.insert(piece, Position[:bi, 7]) }.to raise_error(ArgumentError)
+        expect { board.insert(piece, Position[:bi, 7]) }.to raise_error(InvalidPositionError)
       end
 
       it 'returns an error for a valid but occupied position' do
-        expect { board.insert(piece, Position[:c, 1]) }.to raise_error(ArgumentError)
+        expect { board.insert(piece, Position[:c, 1]) }.to raise_error(BoardManipulationError)
       end
 
       it 'raises error when inserting twice at the same position' do
         new_board = empty_board.insert(piece, Position[:e, 4])
-        expect { new_board.insert(Piece[:white, :rook], Position[:e, 4]) }.to raise_error(ArgumentError)
+        expect { new_board.insert(Piece[:white, :rook], Position[:e, 4]) }.to raise_error(BoardManipulationError)
       end
 
       it 'rejects an object that does not respond to :type and :color' do
@@ -207,16 +208,16 @@ RSpec.describe Board do
       end
 
       it 'returns an error for position given, but invalid' do
-        expect { board.remove(Position[:c, -1]) }.to raise_error(ArgumentError)
+        expect { board.remove(Position[:c, -1]) }.to raise_error(InvalidPositionError)
       end
 
       it 'returns an error for a valid but unoccupied position' do
-        expect { board.remove(Position[:a, 4]) }.to raise_error(ArgumentError)
+        expect { board.remove(Position[:a, 4]) }.to raise_error(BoardManipulationError)
       end
 
       it 'raises error when removing twice from the same position' do
         new_board = board.remove(Position[:e, 2])
-        expect { new_board.remove(Position[:e, 2]) }.to raise_error(ArgumentError)
+        expect { new_board.remove(Position[:e, 2]) }.to raise_error(BoardManipulationError)
       end
     end
 
@@ -243,20 +244,20 @@ RSpec.describe Board do
   describe '#move' do
     context 'for invalid arguments' do
       it 'returns an error for an unoccupied starting position' do
-        expect { board.move(Position[:a, 4], Position[:b, 3]) }.to raise_error(ArgumentError)
+        expect { board.move(Position[:a, 4], Position[:b, 3]) }.to raise_error(BoardManipulationError)
       end
 
       it 'returns an error for an occupied target position' do
-        expect { board.move(Position[:c, 8], Position[:b, 7]) }.to raise_error(ArgumentError)
+        expect { board.move(Position[:c, 8], Position[:b, 7]) }.to raise_error(BoardManipulationError)
       end
 
       it 'returns an error for starting and tartget position being the same position' do
-        expect { board.move(Position[:f, 8], Position[:f, 8]) }.to raise_error(ArgumentError)
+        expect { board.move(Position[:f, 8], Position[:f, 8]) }.to raise_error(BoardManipulationError)
       end
 
       it 'returns an error for trying to move with the same coordinates twice' do
         positions = [Position[:c, 8], Position[:b, 7]]
-        expect { board.move(*positions).move(*positions) }.to raise_error(ArgumentError)
+        expect { board.move(*positions).move(*positions) }.to raise_error(BoardManipulationError)
       end
     end
 

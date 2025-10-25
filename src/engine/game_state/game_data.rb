@@ -54,7 +54,7 @@ GameData = Data.define(
 
   def position_signature
     [
-      board.pieces_with_positions,
+      board,
       current_color,
       en_passant_target,
       castling_rights

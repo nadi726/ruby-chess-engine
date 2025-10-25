@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../errors'
+
 # An internal module for GameQuery
 # Check that there are no legal moves for the given color
 module NoLegalMovesHelper
@@ -9,6 +11,8 @@ module NoLegalMovesHelper
   def no_legal_moves?(color)
     each_pseudo_legal_event_sequence(color).all? do |events|
       state.apply_events(events).query.in_check?(color)
+    rescue InvalidEventSequenceError
+      true # Malformed event sequences are considered illegal moves
     end
   end
 
@@ -74,10 +78,13 @@ module NoLegalMovesHelper
     end
   end
 
-  def each_castling_event_sequence(color)
+  def each_castling_event_sequence(color) # rubocop:disable Metrics/AbcSize
     sides = @data.castling_rights.get_side(color)
     valid_sides = %i[kingside queenside].select { sides.public_send(it) }
-    valid_sides.each { yield [CastlingEvent[color, it]] }
+    events = valid_sides.map { CastlingEvent[color, it] }
+                        # Filter occupied positions
+                        .select { board.get(it.king_to).nil? && board.get(it.rook_to).nil? }
+    events.each { yield [it] }
   end
 
   def move_should_promote?(piece, target_pos)

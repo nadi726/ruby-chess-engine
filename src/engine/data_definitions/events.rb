@@ -7,6 +7,9 @@ require_relative 'castling_data'
 # They are produced by the parser (user intent) and by the engine (execution outcome).
 # Each event is self-contained and immutable after creation.
 class GameEvent < Data
+  def inspect
+    "#{self.class}[#{deconstruct.join(', ')}]"
+  end
 end
 
 # ActionEvents are the "main" events, in the sense that they determine how the event list is acted upon

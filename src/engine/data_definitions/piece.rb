@@ -1,12 +1,16 @@
 # frozen_string_literal: true
 
 require_relative 'movement'
+require_relative 'piece_types'
+require_relative 'colors'
 
 # Represents a single chess piece.
 class Piece
   attr_reader :color, :type
 
   def initialize(color, type)
+    raise ArgumentError, 'Not a valid piece' unless COLORS.include?(color) && PIECE_TYPES.include?(type)
+
     @color = color
     @type = type
   end

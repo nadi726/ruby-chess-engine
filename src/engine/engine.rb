@@ -85,6 +85,8 @@ class Engine
     return TurnResult.failure(:invalid_notation) unless events
 
     interpret_events(events)
+  rescue InvariantViolationError => e
+    raise InternalEngineError, "The engine encountered a problem: #{e}"
   end
 
   # Parses notation into a sequence of abstract chess events.
