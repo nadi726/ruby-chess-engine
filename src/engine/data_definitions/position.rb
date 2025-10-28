@@ -6,7 +6,7 @@ require_relative '../errors'
 # and provides methods for validation, conversion, and manipulation of positions within the chess engine.
 # An invalid `Position` (e.g. off the board) may be created,
 # but must not be used, and doing so will result in an error.
-# It is the responsibility of the whoever uses the object to check validity using the `#valid?` method before use.
+# It is the responsibility of whoever uses the object to check validity using the `#valid?` method before use.
 class Position
   FILES = (:a..:h).to_a.freeze
   RANKS = (1..8).to_a.freeze

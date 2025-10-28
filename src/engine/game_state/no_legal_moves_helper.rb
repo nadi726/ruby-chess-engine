@@ -79,6 +79,8 @@ module NoLegalMovesHelper
   end
 
   def each_castling_event_sequence(color) # rubocop:disable Metrics/AbcSize
+    # TODO: - enforce full castling restrictions: can't castle when there are pieces between,
+    #         or when either of the squares the king moves through are attacked
     sides = @data.castling_rights.get_side(color)
     valid_sides = %i[kingside queenside].select { sides.public_send(it) }
     events = valid_sides.map { CastlingEvent[color, it] }

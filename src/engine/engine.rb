@@ -4,6 +4,7 @@
 require_relative 'game_state/game_state'
 require_relative 'event_handlers/init'
 require_relative 'parsers/identity_parser'
+require_relative 'data_definitions/colors'
 
 # The Engine is the central coordinator and interpreter of the chess game.
 #
@@ -21,6 +22,7 @@ class Engine
   def initialize(parser = nil)
     @state = GameState.new
     @parser = parser || IdentityParser.new
+    # TODO: - add resign. potentially change :<color>_checkmate to :<color>_wins
     @endgame_status = nil # one of - nil, :white_checkmate, :black_checkmate, :draw
     @draw_request = nil # one of - nil, :white, :black
     @listeners = []
@@ -56,7 +58,8 @@ class Engine
   # Returns a TurnResult when a draw occurs, or nil otherwise.
   def attempt_draw(color) # rubocop:disable Metrics/MethodLength
     # Check whether the request makes a draw
-    is_mutual_draw = @draw_request == @state.data.other_color
+    is_mutual_draw = @draw_request && COLORS.include?(color) && (color != @draw_request)
+    # TODO: - decide whether to separate draw offers from draw  claims
     is_forced_draw = color == @state.data.current_color && @state.query.can_draw?
     if is_mutual_draw || is_forced_draw
       @endgame_status = :draw
@@ -108,17 +111,14 @@ class Engine
   # - Returns a TurnResult.failure(:invalid_event_sequence)
   def interpret_events(events) # rubocop:disable Metrics/MethodLength
     primary_event, *extras = events
-    unless primary_event.is_a?(ActionEvent)
-      raise ArgumentError, "Parser contract violated: first event must be ActionEvent, got #{primary_event.class}"
-    end
-
     event_handler = event_handler_for(primary_event, extras, @state.query)
     result = event_handler.process
     return TurnResult.failure(:invalid_event_sequence) if result.failure?
 
     @state = @state.apply_events(result.events)
+    # If the side that was offered a draw just moved, clear the offer
+    @draw_request = nil if @state.data.current_color == @draw_request
     @endgame_status = detect_endgame_status
-    @draw_request = nil if @state.data.current_color == :black # reset draw request on turn's end
 
     TurnResult.success(
       events: result.events,
@@ -146,6 +146,18 @@ class Engine
       :draw
     end
   end
+
+  # Allows controlled creation from arbitrary state.
+  # Used by test suites and FEN importers only.
+  private_class_method def self.__from_raw_state(state, parser: nil, endgame_status: nil, draw_request: nil)
+    engine = allocate # skips initialize
+    engine.instance_variable_set(:@state, state)
+    engine.instance_variable_set(:@parser, parser)
+    engine.instance_variable_set(:@endgame_status, endgame_status)
+    engine.instance_variable_set(:@draw_request, draw_request)
+    engine.instance_variable_set(:@listeners, [])
+    engine
+  end
 end
 
 # Represents the outcome of interpreting a single turn.
@@ -156,7 +168,7 @@ end
 # - The current endgame status (if any).
 # - The full GameQuery for advanced inspection.
 #
-# On failure, only `error` is set (one of :invalid_notation, :invalid_event_sequence, :game_ended).
+# On failure, only `error` is set (one of :invalid_notation, :invalid_event_sequence, :game_already_ended).
 #
 # Note: `error` may later be replaced with a structured object to support
 # more detailed error handling.

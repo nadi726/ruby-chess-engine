@@ -32,6 +32,7 @@ CastlingRights = Data.define(
   end
 end
 
+# TODO: - rename to Position
 # Immutable container for the current turn's game data:
 # board layout, active color, en passant target, castling rights, and halfmove clock.
 # Used by GameState as the core snapshot of the position.
