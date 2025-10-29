@@ -9,7 +9,7 @@ require_relative 'no_legal_moves_helper'
 # GameQuery acts as the single entry point for all game-related queries.
 # It exposes methods for:
 # - **Check and checkmate detection** (`in_check?`, `in_checkmate?`)
-# - **draw detection** ( `must_draw?`, `in_draw?`, and detailed draw queries like `in_stalemate?` )
+# - **draw detection** ( `must_draw?`, `in_draw?`, and detailed draw queries like `stalemate?` )
 # - **Piece interactions** (`piece_attacking?`, `piece_can_move?`)
 # - **King and piece lookup** (`current_pieces`, `other_pieces`)
 class GameQuery
@@ -58,7 +58,7 @@ class GameQuery
 
   # Returns true if the game must end in a draw
   def must_draw?
-    in_stalemate? || insufficient_material?
+    stalemate? || insufficient_material?
   end
 
   # returns true if the current player can request a draw to force the game to end
@@ -67,7 +67,7 @@ class GameQuery
   end
 
   # returns true if the game is in stalemate
-  def in_stalemate?
+  def stalemate?
     !in_check? && no_legal_moves?(@data.current_color)
   end
 

@@ -499,7 +499,7 @@ RSpec.describe GameQuery do
     end
   end
 
-  describe '#in_stalemate?' do
+  describe '#stalemate?' do
     it 'returns false when the king can move' do
       board = fill_board(
         [
@@ -510,7 +510,7 @@ RSpec.describe GameQuery do
       gamedata = GameData.start.with(board: board, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
-      expect(query).not_to be_in_stalemate
+      expect(query).not_to be_stalemate
     end
 
     it 'returns false when the king is in checkmate' do
@@ -525,7 +525,7 @@ RSpec.describe GameQuery do
       gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
-      expect(query).not_to be_in_stalemate
+      expect(query).not_to be_stalemate
     end
 
     it 'returns false when king cannot move but a pawn can' do
@@ -540,7 +540,7 @@ RSpec.describe GameQuery do
 
       gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
-      expect(query).not_to be_in_stalemate
+      expect(query).not_to be_stalemate
     end
 
     it 'returns true for stalemate (black)' do
@@ -555,7 +555,7 @@ RSpec.describe GameQuery do
       gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
-      expect(query).to be_in_stalemate
+      expect(query).to be_stalemate
     end
 
     it 'returns true for stalemate (white)' do
@@ -570,7 +570,7 @@ RSpec.describe GameQuery do
       gamedata = GameData.start.with(board: board, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
-      expect(query).to be_in_stalemate
+      expect(query).to be_stalemate
     end
 
     it 'returns true for more complex stalemate (white)' do
@@ -587,7 +587,7 @@ RSpec.describe GameQuery do
       gamedata = GameData.start.with(board: board, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
-      expect(query).to be_in_stalemate
+      expect(query).to be_stalemate
     end
 
     it 'returns true for more complex stalemate (black)' do
@@ -603,7 +603,7 @@ RSpec.describe GameQuery do
       gamedata = GameData.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
       query = GameQuery.new(gamedata)
 
-      expect(query).to be_in_stalemate
+      expect(query).to be_stalemate
     end
   end
 

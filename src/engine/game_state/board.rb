@@ -128,6 +128,10 @@ class Board
     rows.join("\n")
   end
 
+  def inspect
+    "#<Board #{pieces_with_positions.map { |piece, pos| "#{piece}@#{pos}" }.join(', ')}>"
+  end
+
   def ==(other)
     other.is_a?(Board) && pieces_with_positions == other.pieces_with_positions
   end
