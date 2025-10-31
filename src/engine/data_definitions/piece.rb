@@ -16,26 +16,26 @@ class Piece
   end
 
   # Returns all valid movement destinations for this piece, excluding captures.
-  def moves(board, position)
-    each_potential_move(board, position, is_attacking: false)
+  def moves(board, square)
+    each_potential_move(board, square, is_attacking: false)
   end
 
   # Returns all squares this piece *geometrically threatens*,
   # regardless of whether those squares are occupied or legally capturable.
   #
   # This is used for threat detection like check or pins.
-  def threatened_squares(board, position)
-    each_potential_move(board, position, is_attacking: true)
+  def threatened_squares(board, square)
+    each_potential_move(board, square, is_attacking: true)
   end
 
   private
 
-  # Yields every position this piece could move to or attack, depending on mode.
-  def each_potential_move(board, position, is_attacking:, &)
-    return enum_for(__method__, board, position, is_attacking: is_attacking) unless block_given?
+  # Yields every square this piece could move to or attack, depending on mode.
+  def each_potential_move(board, square, is_attacking:, &)
+    return enum_for(__method__, board, square, is_attacking: is_attacking) unless block_given?
 
     yielded = false
-    yield_special_moves(board, position, is_attacking) do |move|
+    yield_special_moves(board, square, is_attacking) do |move|
       yielded = true
       yield move
     end
@@ -44,23 +44,23 @@ class Piece
 
     deltas = adjust_for_color(is_attacking ? attacks_deltas : base_deltas)
     deltas.each do |delta|
-      walk_deltas(delta, board, position, is_attacking: is_attacking, &)
+      walk_deltas(delta, board, square, is_attacking: is_attacking, &)
     end
   end
 
-  # Yields any special-case movement positions defined for this piece,
+  # Yields any special-case movement squares defined for this piece,
   # such as pawn's initial double-step. Only applied in non-attacking context.
-  def yield_special_moves(board, position, is_attacking)
-    return enum_for(__method__, board, position, is_attacking) unless block_given?
+  def yield_special_moves(board, square, is_attacking)
+    return enum_for(__method__, board, square, is_attacking) unless block_given?
     return if !movement[:special_moves] || is_attacking
 
     movement[:special_moves]&.each do |special|
-      next unless special[:condition].call(self, position)
+      next unless special[:condition].call(self, square)
 
       path = adjust_for_color(special[:path])
-      current = position
+      current = square
       path.each do |delta|
-        current = position.offset(*delta)
+        current = square.offset(*delta)
         break if !current.valid? || board.get(current)
 
         yield current
@@ -69,13 +69,13 @@ class Piece
   end
 
   # Walks a vector across the board and yields each step until blocked or invalid.
-  def walk_deltas(delta, board, position, is_attacking:)
-    return enum_for(__method__, delta, board, position, is_attacking: is_attacking) unless block_given?
+  def walk_deltas(delta, board, square, is_attacking:)
+    return enum_for(__method__, delta, board, square, is_attacking: is_attacking) unless block_given?
 
-    current_position = position
+    current_square = square
 
     loop do
-      new_move = current_position.offset(*delta)
+      new_move = current_square.offset(*delta)
       break unless new_move.valid?
 
       blocker = board.get(new_move)
@@ -89,7 +89,7 @@ class Piece
 
       break unless movement[:repeat]
 
-      current_position = new_move
+      current_square = new_move
     end
   end
 

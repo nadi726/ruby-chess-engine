@@ -1,33 +1,32 @@
 # frozen_string_literal: true
 
-require 'data_definitions/position'
+require 'data_definitions/square'
 
-# Expects a space-separated string of positions (e.g., 'a1 d6')
-# And returns an array of Position objects
-def parse_positions(positions)
-  positions.split.map do |pos|
-    Position[pos[0].to_sym, pos[1].to_i]
+# Expects a space-separated string of squares (e.g., 'a1 d6')
+# And returns an array of Square objects
+def parse_squares(squares)
+  squares.split.map do |pos|
+    Square[pos[0].to_sym, pos[1].to_i]
   end
 end
 
-# Fills a game board, given an array of
-# positions for white and black pieces.
+# Fills a game board, given an array of squares for white and black pieces.
 #
-# - All positions not listed return nil
-# - Each position for white pieces returns a double with color: :white
-# - Each position for black pieces returns a double with color: :black
-def fill_board_by_position(white_positions, black_positions)
+# - All squares not listed return nil
+# - Each square for white pieces returns a double with color: :white
+# - Each square for black pieces returns a double with color: :black
+def fill_board_by_square(white_squares, black_squares)
   # Start with an array of 64 nils
   squares = Array.new(64)
 
   # Place white pieces
-  white_positions.each do |pos|
+  white_squares.each do |pos|
     idx = (pos.to_a[0] * Board::SIZE) + pos.to_a[1]
     squares[idx] = Piece[:white, :pawn]
   end
 
   # Place black pieces
-  black_positions.each do |pos|
+  black_squares.each do |pos|
     idx = (pos.to_a[0] * Board::SIZE) + pos.to_a[1]
     squares[idx] = Piece[:black, :pawn]
   end
@@ -36,11 +35,11 @@ def fill_board_by_position(white_positions, black_positions)
 end
 
 # Takes an array of pairs, where the first element of the pair is a Piece
-# and the second element of the pair is a Position object.
+# and the second element of the pair is a Square object.
 #
-# Returns a Board instance with all pieces inserted at their corresponding positions.
-def fill_board(pieces_with_positions, board: Board.empty)
-  pieces_with_positions.reduce(board) { |b, val| b.insert(*val) }
+# Returns a Board instance with all pieces inserted at their corresponding squares.
+def fill_board(pieces_with_squares, board: Board.empty)
+  pieces_with_squares.reduce(board) { |b, val| b.insert(*val) }
 end
 
 RSpec::Matchers.define :be_a_successful_handler_result do

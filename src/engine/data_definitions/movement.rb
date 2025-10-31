@@ -36,9 +36,9 @@ MOVEMENT = Immutable.from(
       special_moves: [
         {
           path: [[0, 1], [0, 2]],
-          condition: lambda { |piece, position|
-            (piece.color == :white && position.rank == 2) ||
-              (piece.color == :black && position.rank == 7)
+          condition: lambda { |piece, square|
+            (piece.color == :white && square.rank == 2) ||
+              (piece.color == :black && square.rank == 7)
           }
         }
       ]

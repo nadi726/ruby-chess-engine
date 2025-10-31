@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 require_relative 'board'
-require_relative 'game_data'
+require_relative 'position'
 require_relative 'game_query'
 require_relative '../data_definitions/piece'
-require_relative '../data_definitions/position'
+require_relative '../data_definitions/square'
 require_relative '../data_definitions/castling_data'
 require_relative '../data_definitions/events'
 require 'immutable'
@@ -19,7 +19,7 @@ require 'immutable'
 # - Produce the next GameState by applying a list of valid events (`#apply_events`).
 #
 # Internal structure:
-# - data: A GameData object representing the current game data
+# - position: A `Position` object representing the current game position
 # - move_history: An immutable list of event-lists. Each inner list represents the events that made up a single turn.
 # - position_signatures: An immutable hash counting position signatures, used for detecting repetition.
 # - query: A `GameQuery` object that provides a high-level interface for interrogating the state.
@@ -27,18 +27,18 @@ require 'immutable'
 # The design avoids mutable state — each change produces a new `GameState`, leaving previous states untouched.
 # This makes reasoning about the engine easier and enables features like undo and state comparison.
 class GameState
-  attr_reader :query, :data
+  attr_reader :query, :position
 
   # The state at the game's start
   def self.start
     GameState.new
   end
 
-  def initialize(data: GameData.start, move_history: Immutable::List[], position_signatures: Immutable::Hash[])
-    @data = data
+  def initialize(position: Position.start, move_history: Immutable::List[], position_signatures: Immutable::Hash[])
+    @position = position
     @move_history = move_history
     @position_signatures = position_signatures
-    @query = GameQuery.new(@data, @move_history, @position_signatures)
+    @query = GameQuery.new(@position, @move_history, @position_signatures)
   end
 
   # Process a sequence of events to produce the next GameState
@@ -47,11 +47,11 @@ class GameState
     raise ArgumentError unless events.is_a?(Enumerable) && events.all? { it.is_a?(GameEvent) }
 
     events = Immutable.from events
-    signature_count = @position_signatures.fetch(@data.position_signature, 0)
-    signatures = @position_signatures.put(@data.position_signature, signature_count + 1)
+    signature_count = @position_signatures.fetch(@position.signature, 0)
+    signatures = @position_signatures.put(@position.signature, signature_count + 1)
 
     GameState.new(
-      data: advance_data(events),
+      position: advance_position(events),
       move_history: @move_history.add(events),
       position_signatures: signatures
     )
@@ -59,16 +59,15 @@ class GameState
 
   private
 
-  def advance_data(events)
-    GameData.new(
-      board: advance_board(@data.board, events),
-      current_color: @data.other_color,
+  def advance_position(events)
+    Position.new(
+      board: advance_board(@position.board, events),
+      current_color: @position.other_color,
       en_passant_target: compute_en_passant(events),
-      castling_rights: compute_castling_rights(@data.castling_rights, @data.current_color, events),
-      halfmove_clock: compute_halfmove_clock(@data.halfmove_clock, events)
+      castling_rights: compute_castling_rights(@position.castling_rights, @position.current_color, events),
+      halfmove_clock: compute_halfmove_clock(@position.halfmove_clock, events)
     )
-  rescue InvalidEventSequenceError
-    raise
+  rescue InvalidEventSequenceError; raise
   rescue InvariantViolationError => e
     raise InvalidEventSequenceError,
           "Invariant violation during event application: #{e.class} - #{e.message}\nSequence: #{events.to_a.inspect}"
@@ -79,7 +78,7 @@ class GameState
     in MovePieceEvent => e
       advance_with_move_piece_event(board, events, e)
     in EnPassantEvent => e
-      board.remove(e.captured_position).move(e.from, e.to)
+      board.remove(e.captured_square).move(e.from, e.to)
     in CastlingEvent => e
       board.move(e.king_from, e.king_to).move(e.rook_from, e.rook_to)
     in nil
@@ -95,7 +94,7 @@ class GameState
     final_piece = promote ? Piece.new(piece.color, promote.piece_type) : piece
 
     removals = events.grep(RemovePieceEvent)
-    board = removals.reduce(board) { |b, e| b.remove(e.position) }
+    board = removals.reduce(board) { |b, e| b.remove(e.square) }
 
     board.remove(from).insert(final_piece, to)
   end
@@ -109,7 +108,7 @@ class GameState
     return unless move
 
     # Return the square passed over
-    pos = Position[move.from.file, (move.from.rank + move.to.rank) / 2]
+    pos = Square[move.from.file, (move.from.rank + move.to.rank) / 2]
     raise InvariantViolationError, "Invalid en passant target: #{pos}" unless pos.valid?
 
     pos

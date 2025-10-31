@@ -32,11 +32,10 @@ CastlingRights = Data.define(
   end
 end
 
-# TODO: - rename to Position
-# Immutable container for the current turn's game data:
+# Immutable container for all the data about the current chess position:
 # board layout, active color, en passant target, castling rights, and halfmove clock.
-# Used by GameState as the core snapshot of the position.
-GameData = Data.define(
+# Used by `GameState` as the core snapshot of the position.
+Position = Data.define(
   :board,
   :current_color,
   :en_passant_target,
@@ -44,7 +43,7 @@ GameData = Data.define(
   :halfmove_clock
 ) do
   def self.start
-    GameData[
+    Position[
       board: Board.start,
       current_color: :white,
       en_passant_target: nil,
@@ -53,7 +52,9 @@ GameData = Data.define(
     ]
   end
 
-  def position_signature
+  # An identifier for indicating whether positions are identical in the context of position repetitions,
+  # as used for threefold/fivefold repetition detection.
+  def signature
     [
       board,
       current_color,

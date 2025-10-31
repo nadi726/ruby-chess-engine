@@ -7,12 +7,12 @@ module StartState
     @start_state ||= GameState.start
   end
 
-  def start_data
-    start_state.query.data
+  def start_position
+    start_state.query.position
   end
 
   def start_board
-    start_data.board
+    start_position.board
   end
 
   def start_query

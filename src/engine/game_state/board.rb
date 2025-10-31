@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
 require_relative 'persistent_array'
-require_relative '../data_definitions/position'
+require_relative '../data_definitions/square'
 require_relative '../data_definitions/piece'
 require_relative '../errors'
 
 # Board is an immutable chessboard representation.
-# Each square is mapped to either a piece or nil, using Position objects for coordinates.
-# Provides query methods (e.g., #get, #pieces_with_positions) to inspect board state,
+# Each square is mapped to either a piece or nil, using `Square` objects for coordinates.
+# Provides query methods (e.g., #get, #pieces_with_squares) to inspect board state,
 # and manipulation methods that return new Board instances with the desired changes.
 # Designed for safe, functional-style updates and efficient state sharing.
 class Board
-  SIZE = 8 # Board's dimensions
+  SIZE = 8 # the board dimensions
 
-  # Constructs a Board from a flat array of 64 items.
-  # Each item's index maps to a board position as follows:
+  # Constructs a `Board` from a flat array of 64 items.
+  # Each item's index maps to a board square as follows:
   # 0 -> a1, 2 -> b1, ... 8 -> a2, ... 63 -> h8
   # Each item should be a Piece or nil, representing the contents of that square.
   def self.from_flat_array(values)
@@ -30,7 +30,7 @@ class Board
     from_flat_array(Array.new(SIZE * SIZE))
   end
 
-  # A board with all pieces set up at their starting positions
+  # A board with all pieces set up at their starting squares
   def self.start
     back_row = %i[rook knight bishop queen king bishop knight rook]
     ranks = [
@@ -51,58 +51,58 @@ class Board
 
   ######## Queries
 
-  # Get the piece at the given position, or nil if the position is unoccupied
-  def get(position)
-    index = position_to_index(position)
+  # Get the piece at the given square, or nil if the square is unoccupied
+  def get(square)
+    index = square_to_index(square)
     @array.get(index)
   end
 
-  # Returns an array of all pieces, with their positions, matching the criteria.
-  # The result is an array of elements of the form: [piece, position]
+  # Returns an array of all pieces, with their squares, matching the criteria.
+  # The result is an array of elements of the form: [piece, square]
   # If type or color is nil, that attribute is ignored.
   # Examples:
   #   All black pieces: find_pieces(color: :black)
   #   All pieces:       find_pieces
   #   White rooks:      find_pieces(type: :rook, color: :white)
-  def pieces_with_positions(color: nil, type: nil)
+  def pieces_with_squares(color: nil, type: nil)
     @array.filter_map.with_index do |piece, index|
       next if piece.nil?
 
-      [piece, index_to_position(index)] if [nil, piece.type].include?(type) && [nil, piece.color].include?(color)
+      [piece, index_to_square(index)] if [nil, piece.type].include?(type) && [nil, piece.color].include?(color)
     end
   end
 
   # Returns an array of all pieces matching the criteria.
-  # Internally delegates to #pieces_with_positions, stripping the positions.
+  # Internally delegates to #pieces_with_squares, stripping the squares.
   def find_pieces(color: nil, type: nil)
-    pieces_with_positions(color: color, type: type).map(&:first)
+    pieces_with_squares(color: color, type: type).map(&:first)
   end
 
   ######## Manipulation
 
   def move(from, to)
-    from_index = position_to_index from
+    from_index = square_to_index from
     piece = @array.get from_index
-    to_index = position_to_index to
+    to_index = square_to_index to
     raise BoardManipulationError, 'No piece to move' if piece.nil?
     raise BoardManipulationError, 'Destination is already occupied' unless @array.get(to_index).nil?
-    raise BoardManipulationError, 'Cannot move to the same position' if from == to
+    raise BoardManipulationError, 'Cannot move to the same square' if from == to
 
     Board.new(@array.set(from_index, nil).set(to_index, piece))
   end
 
-  def remove(position)
-    index = position_to_index position
-    raise BoardManipulationError, 'Position is unoccupied' if get(position).nil?
+  def remove(square)
+    index = square_to_index square
+    raise BoardManipulationError, 'Square is unoccupied' if get(square).nil?
 
     Board.new(@array.set(index, nil))
   end
 
-  # Inserts the given piece to an empty position
-  def insert(piece, position)
-    index = position_to_index(position)
+  # Inserts the given piece to an empty square
+  def insert(piece, square)
+    index = square_to_index(square)
     raise ArgumentError, 'Not a valid piece' unless piece.is_a?(Piece)
-    raise BoardManipulationError, 'Position is occupied' unless @array.get(index).nil?
+    raise BoardManipulationError, 'Square is occupied' unless @array.get(index).nil?
 
     Board.new(@array.set(index, piece))
   end
@@ -114,7 +114,7 @@ class Board
     (0...SIZE).each do |row|
       row_str = "#{row + 1} "
       (0...SIZE).each do |col|
-        index = position_to_index(Position.from_index(row, col))
+        index = square_to_index(Square.from_index(row, col))
         piece = @array.get(index)
         row_str += if piece
                      "#{piece} "
@@ -129,11 +129,11 @@ class Board
   end
 
   def inspect
-    "#<Board #{pieces_with_positions.map { |piece, pos| "#{piece}@#{pos}" }.join(', ')}>"
+    "#<Board #{pieces_with_squares.map { |piece, pos| "#{piece}@#{pos}" }.join(', ')}>"
   end
 
   def ==(other)
-    other.is_a?(Board) && pieces_with_positions == other.pieces_with_positions
+    other.is_a?(Board) && pieces_with_squares == other.pieces_with_squares
   end
 
   def eql?(other)
@@ -141,22 +141,22 @@ class Board
   end
 
   def hash
-    # Don't use the exact same hash as #pieces_with_positions to avoid clashes
-    [pieces_with_positions, 0].hash
+    # Doesn't use the exact same hash as #pieces_with_squares to avoid clashes
+    [pieces_with_squares, 0].hash
   end
 
   private
 
-  def position_to_index(position)
-    raise ArgumentError unless position.is_a?(Position)
-    raise InvalidPositionError unless position.valid?
+  def square_to_index(square)
+    raise ArgumentError unless square.is_a?(Square)
+    raise InvalidSquareError unless square.valid?
 
-    row, col = position.to_a
+    row, col = square.to_a
     (row * SIZE) + col
   end
 
-  def index_to_position(index)
+  def index_to_square(index)
     row, col = index.divmod(SIZE)
-    Position.from_index(row, col)
+    Square.from_index(row, col)
   end
 end

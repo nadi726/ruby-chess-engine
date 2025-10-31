@@ -15,26 +15,26 @@ require_relative 'no_legal_moves_helper'
 class GameQuery
   include NoLegalMovesHelper
 
-  attr_reader :data, :move_history, :position_signatures, :board
+  attr_reader :position, :move_history, :position_signatures, :board
 
-  def initialize(data, move_history = Immutable::List[], position_signatures = Immutable::Hash[])
-    @data = data
+  def initialize(position, move_history = Immutable::List[], position_signatures = Immutable::Hash[])
+    @position = position
     @move_history = Immutable.from move_history
     @position_signatures = Immutable.from position_signatures
-    @board = data.board # For easier access
+    @board = position.board # For easier access
   end
 
   def state
-    @state ||= GameState.new(data: data, move_history: move_history, position_signatures: position_signatures)
+    @state ||= GameState.new(position: position, move_history: move_history, position_signatures: position_signatures)
   end
 
-  # Determines if a piece at the given position is attacking a target position.
-  def piece_attacking?(from, target_position)
+  # Determines if a piece at the given square is attacking a target square.
+  def piece_attacking?(from, target_square)
     piece = board.get(from)
-    target_piece = board.get(target_position)
+    target_piece = board.get(target_square)
     return false unless piece && target_piece && piece.color != target_piece.color
 
-    piece.threatened_squares(board, from).include?(target_position)
+    piece.threatened_squares(board, from).include?(target_square)
   end
 
   def piece_can_move?(from, to)
@@ -43,16 +43,16 @@ class GameQuery
   end
 
   # returns true if the king of the specified color is in check
-  def in_check?(color = @data.current_color)
-    _k, king_pos = @board.pieces_with_positions(color: color, type: :king).first
-    other_pieces_positions = @board.pieces_with_positions(color: color == :white ? :black : :white)
-    other_pieces_positions.any? do |_, piece_pos|
+  def in_check?(color = @position.current_color)
+    _k, king_pos = @board.pieces_with_squares(color: color, type: :king).first
+    other_pieces_squares = @board.pieces_with_squares(color: color == :white ? :black : :white)
+    other_pieces_squares.any? do |_, piece_pos|
       piece_attacking?(piece_pos, king_pos)
     end
   end
 
   # returns true if the king of the specified color is in checkmate
-  def in_checkmate?(color = @data.current_color)
+  def in_checkmate?(color = @position.current_color)
     in_check?(color) && no_legal_moves?(color)
   end
 
@@ -68,7 +68,7 @@ class GameQuery
 
   # returns true if the game is in stalemate
   def stalemate?
-    !in_check? && no_legal_moves?(@data.current_color)
+    !in_check? && no_legal_moves?(@position.current_color)
   end
 
   # According to FIDE rules, as listed here:
@@ -84,19 +84,19 @@ class GameQuery
   end
 
   def threefold_repetition?
-    @position_signatures.fetch(@data.position_signature, 0) >= 3
+    @position_signatures.fetch(@position.signature, 0) >= 3
   end
 
   def fifty_move_rule?
-    @data.halfmove_clock >= 100
+    @position.halfmove_clock >= 100
   end
 
   def current_pieces
-    @board.find_pieces(color: @data.current_color)
+    @board.find_pieces(color: @position.current_color)
   end
 
   def other_pieces
-    @board.find_pieces(color: @data.other_color)
+    @board.find_pieces(color: @position.other_color)
   end
 
   def all_pieces
@@ -124,8 +124,8 @@ class GameQuery
   # (only relevant when each side has exactly one bishop)
   # Used in #insufficient_material?
   def same_color_bishops?
-    bishop_pos1 = @board.pieces_with_positions(color: :white, type: :bishop).first&.last
-    bishop_pos2 = @board.pieces_with_positions(color: :black, type: :bishop).first&.last
+    bishop_pos1 = @board.pieces_with_squares(color: :white, type: :bishop).first&.last
+    bishop_pos2 = @board.pieces_with_squares(color: :black, type: :bishop).first&.last
     return false unless bishop_pos1 && bishop_pos2
 
     file_distance, rank_distance = bishop_pos1.distance(bishop_pos2)

@@ -56,8 +56,8 @@ end
 
 # En passant move (special pawn capture).
 EnPassantEvent = ActionEvent.define(:from, :to) do
-  def captured_position
-    Position.new(to.file, from.rank)
+  def captured_square
+    Square.new(to.file, from.rank)
   end
 end
 
@@ -66,9 +66,9 @@ end
 PromotePieceEvent = StateEvent.define(:piece_type)
 
 # Piece removal — e.g., for captures.
-# Either position or piece (or both) can be specified.
-RemovePieceEvent = StateEvent.define(:position, :piece) do
-  def initialize(position: nil, piece: nil)
+# Either square or piece (or both) can be specified.
+RemovePieceEvent = StateEvent.define(:square, :piece) do
+  def initialize(square: nil, piece: nil)
     super
   end
 end

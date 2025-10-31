@@ -2,12 +2,12 @@
 
 require_relative '../errors'
 
-# The `Position` class is used to encapsulate the file (column) and rank (row) of a square,
-# and provides methods for validation, conversion, and manipulation of positions within the chess engine.
-# An invalid `Position` (e.g. off the board) may be created,
+# Represents chessboard sqaures, each with a rank and a file,
+# and provides methods for validation, conversion, and manipulation of squares within the chess engine.
+# An invalid `Square` (e.g. off the board) may be created,
 # but must not be used, and doing so will result in an error.
 # It is the responsibility of whoever uses the object to check validity using the `#valid?` method before use.
-class Position
+class Square
   FILES = (:a..:h).to_a.freeze
   RANKS = (1..8).to_a.freeze
 
@@ -26,7 +26,7 @@ class Position
 
   # Produces a standard array representation of [row, column]
   def to_a
-    return InvalidPositionError unless valid?
+    return InvalidSquareError unless valid?
 
     [@rank - 1, FILES.index(@file)]
   end
@@ -35,14 +35,14 @@ class Position
     row, col = to_a
     row += rank_delta
     col += file_delta
-    Position.from_index(row, col)
+    Square.from_index(row, col)
   end
 
-  # Returns the distance between self and the given Position object.
+  # Returns the distance between self and the given Square object.
   # The result is of the format [file_distance, rank_distance].
   # For example, the distance from b2 to d2 is [2, 0].
   def distance(other)
-    raise InvalidPositionError unless valid? && other&.valid?
+    raise InvalidSquareError unless valid? && other&.valid?
 
     file_distance = (FILES.index(file) - FILES.index(other.file)).abs
     rank_distance = (rank - other.rank).abs
@@ -63,7 +63,7 @@ class Position
   end
 
   def ==(other)
-    other.is_a?(Position) && file == other.file && rank == other.rank
+    other.is_a?(Square) && file == other.file && rank == other.rank
   end
 
   def eql?(other)
@@ -74,7 +74,7 @@ class Position
     [file, rank].hash
   end
 
-  # For Position[file, rank] syntax.
+  # For Square[file, rank] syntax.
   # Makes it clearer that this is a value object, similar to Data
   def self.[](file, rank)
     new(file, rank)

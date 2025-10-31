@@ -2,7 +2,7 @@
 
 require_relative '../errors'
 
-# An internal module for GameQuery
+# An internal module for `GameQuery`
 # Check that there are no legal moves for the given color
 module NoLegalMovesHelper
   private
@@ -21,7 +21,7 @@ module NoLegalMovesHelper
   def each_pseudo_legal_event_sequence(color, &)
     return enum_for(__method__, color) unless block_given?
 
-    board.pieces_with_positions(color: color).each do |piece, pos|
+    board.pieces_with_squares(color: color).each do |piece, pos|
       each_move_only_event_sequence(piece, pos, &)
       each_capture_event_sequence(piece, pos, &)
     end
@@ -71,20 +71,20 @@ module NoLegalMovesHelper
 
     rank_offset = color == :white ? -1 : 1
     [1, -1].each do |file_offset|
-      pos = data.en_passant_target.offset(file_offset, rank_offset)
+      pos = position.en_passant_target.offset(file_offset, rank_offset)
       next unless pos.valid? && board.get(pos) == Piece[color, :pawn]
 
-      yield [EnPassantEvent[pos, data.en_passant_target]]
+      yield [EnPassantEvent[pos, position.en_passant_target]]
     end
   end
 
   def each_castling_event_sequence(color) # rubocop:disable Metrics/AbcSize
     # TODO: - enforce full castling restrictions: can't castle when there are pieces between,
     #         or when either of the squares the king moves through are attacked
-    sides = @data.castling_rights.get_side(color)
+    sides = @position.castling_rights.get_side(color)
     valid_sides = %i[kingside queenside].select { sides.public_send(it) }
     events = valid_sides.map { CastlingEvent[color, it] }
-                        # Filter occupied positions
+                        # Filter occupied squares
                         .select { board.get(it.king_to).nil? && board.get(it.rook_to).nil? }
     events.each { yield [it] }
   end
@@ -96,9 +96,9 @@ module NoLegalMovesHelper
   end
 
   def can_en_passant?(color)
-    data.en_passant_target && (
-    (color == :white && data.en_passant_target.rank == 6) ||
-    (color == :black && data.en_passant_target.rank == 3)
+    position.en_passant_target && (
+    (color == :white && position.en_passant_target.rank == 6) ||
+    (color == :black && position.en_passant_target.rank == 3)
   )
   end
 end

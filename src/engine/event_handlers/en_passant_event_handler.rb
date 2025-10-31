@@ -14,8 +14,8 @@ class EnPassantEventHandler < EventHandler
   end
 
   def valid_en_passant?
-    query.data.en_passant_target &&
-      query.data.en_passant_target == main.to &&
+    query.position.en_passant_target &&
+      query.position.en_passant_target == main.to &&
       from_piece&.type == :pawn &&
       main.from.distance(main.to) == [1, 1] &&
       @query.current_pieces.include?(from_piece)

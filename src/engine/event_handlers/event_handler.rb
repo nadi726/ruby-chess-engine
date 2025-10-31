@@ -25,7 +25,7 @@ class EventHandler
   end
 
   # Primary entry point.
-  # Validates and completes the event sequence, returning an EventResult.
+  # Validates and completes the event sequence, returning an `EventResult`.
   def process
     result = validate_and_resolve
     return result if result.failure?
@@ -37,8 +37,8 @@ class EventHandler
 
   # To be implemented by subclasses.
   # Validates and resolves the main event (plus any extras) into a fully
-  # determined sequence of low-level events suitable for GameState application.
-  # Returns an EventResult with either the finalized sequence or an error.
+  # determined sequence of low-level events suitable for `GameState` application.
+  # Returns an `EventResult` with either the finalized sequence or an error.
   def validate_and_resolve
     raise NotImplementedError
   end
@@ -53,7 +53,7 @@ class EventHandler
 
   def next_turn_in_check?(events)
     new_query = query.state.apply_events(events).query
-    new_query.in_check?(query.data.current_color)
+    new_query.in_check?(query.position.current_color)
   end
 
   def valid_result(events)

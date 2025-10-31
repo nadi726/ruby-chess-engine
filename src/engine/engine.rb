@@ -8,7 +8,7 @@ require_relative 'parsers/identity_parser'
 # The Engine is the central coordinator and interpreter of the chess game.
 #
 # It interprets structured input (chess notation) and translates it into concrete
-# state transitions, producing `TurnResult` objects and notifying registered listeners.
+# state transitions, producing `GameUpdate` objects and notifying registered listeners.
 #
 # Each engine is responsible for a single game, and uses a single `Parser` for parsing notation.
 # `#initialize` starts a new game.
@@ -20,7 +20,7 @@ require_relative 'parsers/identity_parser'
 #   Those actions are triggered by `#offer_draw`, `#accept_draw`, `#claim_draw` and `#resign` respectively.
 #
 # To observe game progress, clients can:
-# - Register as listeners and implement `#on_engine_update(turn_result)` to get turn-by-turn updates
+# - Register as listeners and implement `#on_game_update(game_update)` to get turn-by-turn updates
 # - call the `#query` methods to get the current game snapshot
 class Engine # rubocop:disable Metrics/ClassLength
   def initialize(parser = nil)
@@ -50,9 +50,9 @@ class Engine # rubocop:disable Metrics/ClassLength
   # Plays one side’s turn.
   #
   # Parses the given notation, interprets the corresponding events,
-  # updates the engine’s state, and notifies listeners with a `TurnResult`.
+  # updates the engine’s state, and notifies listeners with a `GameUpdate`.
   #
-  # Returns a corresponding TurnResult.
+  # Returns a corresponding `GameUpdate`.
   def play_turn(notation)
     result = interpret_turn notation
     notify_listeners result
@@ -66,14 +66,14 @@ class Engine # rubocop:disable Metrics/ClassLength
   def offer_draw
     return if @endgame_status
 
-    @offered_draw = query.data.current_color
+    @offered_draw = query.position.current_color
   end
 
   # Accepts a pending draw offer from the opponent and ends the game.
   # Does nothing if no offer exists.
   def accept_draw
     return if @endgame_status
-    return unless @offered_draw && @offered_draw != query.data.current_color
+    return unless @offered_draw && @offered_draw != query.position.current_color
 
     end_game(GameOutcome[:draw, :agreement])
   end
@@ -92,19 +92,19 @@ class Engine # rubocop:disable Metrics/ClassLength
   def resign
     return if @endgame_status
 
-    winner = query.data.other_color
+    winner = query.position.other_color
     end_game(GameOutcome[winner, :resignation])
   end
 
   private
 
   # Interprets a move notation through all internal processing stages.
-  # If valid, advances the engine state; Returns a `TurnResult`.
+  # If valid, advances the engine state; Returns a `GameUpdate`.
   def interpret_turn(notation)
-    return TurnResult.failure(:game_already_ended) if @endgame_status
+    return GameUpdate.failure(:game_already_ended) if @endgame_status
 
     events = parse_notation(notation)
-    return TurnResult.failure(:invalid_notation) unless events
+    return GameUpdate.failure(:invalid_notation) unless events
 
     interpret_events(events)
   rescue InvariantViolationError => e
@@ -124,22 +124,22 @@ class Engine # rubocop:disable Metrics/ClassLength
   # On success:
   # - Applies events to the current `GameState`
   # - Updates endgame and offered draw status
-  # - Returns a `TurnResult.success`
+  # - Returns a `GameUpdate.success`
   #
   # On failure:
-  # - Returns a `TurnResult.failure(:invalid_event_sequence)`
+  # - Returns a `GameUpdate.failure(:invalid_event_sequence)`
   def interpret_events(events) # rubocop:disable Metrics/MethodLength
     primary_event, *extras = events
     event_handler = event_handler_for(primary_event, extras, @state.query)
     result = event_handler.process
-    return TurnResult.failure(:invalid_event_sequence) if result.failure?
+    return GameUpdate.failure(:invalid_event_sequence) if result.failure?
 
     @state = @state.apply_events(result.events)
     # Clear draw offer if the opponent just moved without accepting
-    @offered_draw = nil if @state.data.current_color == @offered_draw
+    @offered_draw = nil if @state.position.current_color == @offered_draw
     @endgame_status = detect_endgame_status
 
-    TurnResult.success(
+    GameUpdate.success(
       events: result.events,
       game_query: @state.query,
       in_check: @state.query.in_check?,
@@ -147,16 +147,16 @@ class Engine # rubocop:disable Metrics/ClassLength
     )
   end
 
-  def notify_listeners(turn_result)
+  def notify_listeners(game_update)
     @listeners.each do |listener|
-      listener.on_engine_update(turn_result)
+      listener.on_game_update(game_update)
     end
   end
 
-  # Checks the current `GameState` for checkmate or automatic draw conditions.
+  # Checks the current state for checkmate or automatic draw conditions.
   # Returns a `GameOutcome` object if the game has ended, otherwise returns nil
   def detect_endgame_status
-    return GameOutcome[query.data.other_color, :checkmate] if query.in_checkmate?
+    return GameOutcome[query.position.other_color, :checkmate] if query.in_checkmate?
     return unless query.must_draw?
 
     cause = if query.stalemate?
@@ -169,18 +169,18 @@ class Engine # rubocop:disable Metrics/ClassLength
     GameOutcome[:draw, cause]
   end
 
-  # Updates endgame status, notifies listeners, and returns the corresponding `TurnResult`.
+  # Updates endgame status, notifies listeners, and returns the corresponding `GameUpdate`.
   # Only used for explicit game-ending actions (resign, accept_draw, claim_draw).
   def end_game(game_outcome)
     @endgame_status = game_outcome
-    turn_result = TurnResult.success(
+    game_update = GameUpdate.success(
       events: [],
       game_query: query,
       in_check: query.in_check?,
       endgame_status: game_outcome
     )
-    notify_listeners(turn_result)
-    turn_result
+    notify_listeners(game_update)
+    game_update
   end
 
   # Allows controlled creation from arbitrary state.
@@ -196,13 +196,13 @@ class Engine # rubocop:disable Metrics/ClassLength
   end
 end
 
-# Represents the outcome of interpreting a single turn.
+# Represents the outcome of a change in the state of the game, like playing a turn or accepting a draw.
 #
 # On success, it contains:
 # - The event sequence that describes what happened.
 # - Whether the current player is in check.
 # - The current endgame status (if any).
-# - The full GameQuery for advanced inspection.
+# - The full `GameQuery` for advanced inspection.
 #
 # On failure, only `error` is set (one of :invalid_notation, :invalid_event_sequence, :game_already_ended).
 #
@@ -210,9 +210,8 @@ end
 # more detailed error handling.
 #
 # Typically, clients should rely on the event sequence and status fields;
-# direct access to GameQuery is for specialized use cases.
-# TODO: - consider renaming to something like `GameUpdate` to signify it isn't always the result of a turn
-TurnResult = Data.define(:events, :game_query, :in_check, :endgame_status, :error) do
+# direct access to `GameQuery` is for specialized use cases.
+GameUpdate = Data.define(:events, :game_query, :in_check, :endgame_status, :error) do
   def success? = error.nil?
   def failure? = !success?
   def game_ended? = !endgame_status.nil?

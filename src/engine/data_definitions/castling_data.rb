@@ -2,33 +2,33 @@
 
 require 'immutable'
 
-# Movement positions for castling pieces, based on the color and side
+# Movement squares for castling pieces, based on the color and side
 module CastlingData
   DATA = Immutable.from(
     {
       %i[white kingside] => {
-        king_from: Position[:e, 1],
-        king_to: Position[:g, 1],
-        rook_from: Position[:h, 1],
-        rook_to: Position[:f, 1]
+        king_from: Square[:e, 1],
+        king_to: Square[:g, 1],
+        rook_from: Square[:h, 1],
+        rook_to: Square[:f, 1]
       },
       %i[white queenside] => {
-        king_from: Position[:e, 1],
-        king_to: Position[:c, 1],
-        rook_from: Position[:a, 1],
-        rook_to: Position[:d, 1]
+        king_from: Square[:e, 1],
+        king_to: Square[:c, 1],
+        rook_from: Square[:a, 1],
+        rook_to: Square[:d, 1]
       },
       %i[black kingside] => {
-        king_from: Position[:e, 8],
-        king_to: Position[:g, 8],
-        rook_from: Position[:h, 8],
-        rook_to: Position[:f, 8]
+        king_from: Square[:e, 8],
+        king_to: Square[:g, 8],
+        rook_from: Square[:h, 8],
+        rook_to: Square[:f, 8]
       },
       %i[black queenside] => {
-        king_from: Position[:e, 8],
-        king_to: Position[:c, 8],
-        rook_from: Position[:a, 8],
-        rook_to: Position[:d, 8]
+        king_from: Square[:e, 8],
+        king_to: Square[:c, 8],
+        rook_from: Square[:a, 8],
+        rook_to: Square[:d, 8]
       }
     }
   )

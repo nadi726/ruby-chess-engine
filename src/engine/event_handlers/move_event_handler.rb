@@ -52,14 +52,14 @@ class MoveEventHandler < EventHandler
 
   def move_valid?
     event_piece = main&.piece
-    (event_piece.nil? || event_piece == from_piece) && from_piece && event_piece.color == query.data.current_color
+    (event_piece.nil? || event_piece == from_piece) && from_piece && event_piece.color == query.position.current_color
   end
 
   def valid_remove_piece_event?
     event = extras.find { it.is_a?(RemovePieceEvent) }
     return false unless event
 
-    [nil, main.to].include?(event.position) &&
+    [nil, main.to].include?(event.square) &&
       [nil, to_piece].include?(event.piece)
   end
 
