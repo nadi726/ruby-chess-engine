@@ -21,10 +21,24 @@ end
 
 RSpec.describe Engine do
   let(:listener) { spy('listener') }
-  subject(:engine) do
-    eng = described_class.new(IdentityParser.new)
-    eng.add_listener(listener)
-    eng
+  subject(:engine) { described_class.new(IdentityParser.new) }
+  subject(:ended_game_engine) do
+    board = fill_board(
+      [
+        [Piece[:white, :king], Square[:e, 1]],
+        [Piece[:black, :king], Square[:e, 8]]
+      ]
+    )
+    position = Position.start.with(board: board, current_color: :white,
+                                   castling_rights: CastlingRights.none)
+    state = GameState.new(position: position)
+    engine_from_state(state, endgame_status: GameOutcome[:draw, :insufficient_material])
+  end
+
+  before do
+    ended_game_engine.add_listener(listener)
+    engine.add_listener(listener)
+    engine.new_game
   end
 
   describe '#play_turn' do
@@ -84,10 +98,9 @@ RSpec.describe Engine do
         ]
         3.times { engine.play_turn(fools_mate[it]) } # right before checkmate
         result = engine.play_turn(fools_mate.last)
-
         expect(result).to be_success
-        expect(result.game_ended?).to eq(true)
         expect(result.endgame_status).to eq(GameOutcome[:black, :checkmate])
+        expect(result.game_ended?).to eq(true)
       end
 
       it 'returns correct result for black checkmate' do
@@ -123,17 +136,7 @@ RSpec.describe Engine do
       end
 
       it 'returns an error object for attempting to make a move after the game has ended' do
-        board = fill_board(
-          [
-            [Piece[:white, :king], Square[:e, 1]],
-            [Piece[:black, :king], Square[:e, 8]]
-          ]
-        )
-        position = Position.start.with(board: board, current_color: :white,
-                                       castling_rights: CastlingRights.none)
-        state = GameState.new(position: position)
-        engine = engine_from_state(state, endgame_status: GameOutcome[:draw, :insufficient_material])
-        result = engine.play_turn([MovePieceEvent[Square[:e, 1], Square[:e, 2]]])
+        result = ended_game_engine.play_turn([MovePieceEvent[Square[:e, 1], Square[:e, 2]]])
 
         expect(result).to be_failure
         expect(result.error).to eq(:game_already_ended)
@@ -143,7 +146,7 @@ RSpec.describe Engine do
 
   describe 'draw methods' do
     context 'draw by agreement' do
-      it 'ends the game in a draw if both players agree to it on the same turn' do
+      it 'ends the game in a draw if both players agree to it on the same turn (white offers)' do
         engine.offer_draw
         engine.play_turn([MovePieceEvent[Square[:b, 2], Square[:b, 4]]])
         engine.accept_draw
@@ -154,19 +157,7 @@ RSpec.describe Engine do
         )
       end
 
-      it 'clears offered draw after the offering side moves' do
-        engine.offer_draw
-        engine.play_turn([MovePieceEvent[Square[:e, 2], Square[:e, 4]]])
-        engine.play_turn([MovePieceEvent[Square[:b, 7], Square[:b, 5]]])
-        engine.accept_draw
-        expect(listener).not_to have_received(:on_game_update).with(
-          an_instance_of(GameUpdate).and(
-            have_attributes(endgame_status: GameOutcome[:draw, :agreement])
-          )
-        )
-      end
-
-      it 'ends in draw for requests on the same turn-cycle, but after black moves' do
+      it 'ends the game in a draw if both players agree to it on the same turn (black offers)' do
         engine.play_turn([MovePieceEvent[Square[:b, 2], Square[:b, 4]]])
         engine.offer_draw
         engine.play_turn([MovePieceEvent[Square[:b, 7], Square[:b, 5]]])
@@ -179,45 +170,67 @@ RSpec.describe Engine do
         )
       end
 
-      it "doesn't end in a draw when accepting a draw comes before offering it" do
-        engine.accept_draw
-        engine.play_turn([MovePieceEvent[Square[:b, 2], Square[:b, 4]]])
-        engine.offer_draw
-        expect(listener).not_to have_received(:on_game_update).with(
-          an_instance_of(GameUpdate).and(
-            have_attributes(endgame_status: GameOutcome[:draw, :agreement])
+      context 'errors' do
+        it 'returns error when offering a draw again on the same turn' do
+          engine.offer_draw
+          engine.offer_draw
+
+          expect(listener).to have_received(:on_game_update).with(GameUpdate.failure(:draw_offer_not_allowed)).ordered
+        end
+        it 'returns error when accepting a draw after it was rejected' do
+          engine.offer_draw
+          engine.play_turn([MovePieceEvent[Square[:b, 2], Square[:b, 4]]])
+          engine.play_turn([MovePieceEvent[Square[:b, 7], Square[:b, 5]]])
+          engine.play_turn([MovePieceEvent[Square[:d, 2], Square[:d, 4]]])
+          engine.accept_draw
+
+          expect(listener).to have_received(:on_game_update).with(GameUpdate.failure(:draw_accept_not_allowed)).ordered
+        end
+
+        it 'returns error when accepting a draw comes before offering it' do
+          engine.accept_draw
+          engine.play_turn([MovePieceEvent[Square[:b, 2], Square[:b, 4]]])
+          engine.offer_draw
+          expect(listener).to have_received(:on_game_update).with(GameUpdate.failure(:draw_accept_not_allowed)).ordered
+          expect(listener).not_to have_received(:on_game_update).with(
+            an_instance_of(GameUpdate).and(
+              have_attributes(endgame_status: GameOutcome[:draw, :agreement])
+            )
           )
-        )
-      end
+        end
 
-      it "doesn't end in a draw for draw offer and acceptance by the same player" do
-        engine.offer_draw
-        engine.accept_draw
-        expect(listener).not_to have_received(:on_game_update)
-      end
+        it 'returns error for draw offer and acceptance by the same player' do
+          engine.offer_draw
+          engine.accept_draw
 
-      it "offering a draw again on the same turn doesn't affect outcome" do
-        engine.offer_draw
-        engine.offer_draw
-        expect(listener).not_to have_received(:on_game_update)
-      end
+          expect(listener).to have_received(:on_game_update).with(GameUpdate.failure(:draw_accept_not_allowed)).ordered
+        end
 
-      it "doesn't change the outcome of a game that has already ended" do
-        fools_mate = [
-          [MovePieceEvent[Square[:f, 2], Square[:f, 3]]],
-          [MovePieceEvent[Square[:e, 7], Square[:e, 6]]],
-          [MovePieceEvent[Square[:g, 2], Square[:g, 4]]],
-          [MovePieceEvent[Square[:d, 8], Square[:h, 4]]]
-        ]
-        3.times { engine.play_turn(fools_mate[it]) }
-        engine.offer_draw
-        engine.play_turn(fools_mate.last) # checkmate
-        engine.accept_draw
-        expect(listener).not_to have_received(:on_game_update).with(
-          an_instance_of(GameUpdate).and(
-            have_attributes(endgame_status: GameOutcome[:draw, :agreement])
-          )
-        )
+        it 'returns error for draw offer in a game that has already ended' do
+          ended_game_engine.offer_draw
+          expect(listener).to have_received(:on_game_update).with(GameUpdate.failure(:game_already_ended)).ordered
+        end
+
+        it 'returns errors for draw acceptance in a game that has already ended' do
+          fools_mate = [
+            [MovePieceEvent[Square[:f, 2], Square[:f, 3]]],
+            [MovePieceEvent[Square[:e, 7], Square[:e, 6]]],
+            [MovePieceEvent[Square[:g, 2], Square[:g, 4]]],
+            [MovePieceEvent[Square[:d, 8], Square[:h, 4]]]
+          ]
+          3.times { engine.play_turn(fools_mate[it]) }
+          engine.offer_draw
+          engine.play_turn(fools_mate.last) # checkmate
+          engine.accept_draw
+
+          expect(listener).to have_received(:on_game_update).with(GameUpdate.failure(:game_already_ended))
+        end
+
+        it 'does not advance the engine after a failure' do
+          prev = engine.last_update
+          engine.accept_draw
+          expect(engine.last_update).to eq(prev)
+        end
       end
     end
 
@@ -229,25 +242,14 @@ RSpec.describe Engine do
         expect(result.endgame_status).to eq(GameOutcome[:draw, :fifty_move])
       end
 
-      it "doesn't end in a draw when player is not eligible" do
-        result = engine.claim_draw
-        expect(result).to eq(nil)
+      it 'returns error when player is not eligible' do
+        engine.claim_draw
+        expect(listener).to have_received(:on_game_update).with(GameUpdate.failure(:draw_claim_not_allowed))
       end
 
-      it "doesn't change the outcome of a game that has already ended" do
-        board = fill_board(
-          [
-            [Piece[:black, :king], Square[:a, 8]],
-            [Piece[:white, :king], Square[:c, 1]],
-            [Piece[:white, :queen], Square[:c, 7]]
-          ]
-        )
-        position = Position.start.with(board: board, current_color: :white, castling_rights: CastlingRights.none,
-                                       halfmove_clock: 120)
-        engine = engine_from_state(GameState.new(position: position), endgame_status: GameOutcome[:draw, :stalemate])
-        engine.add_listener(listener)
-        engine.claim_draw
-        expect(listener).not_to have_received(:on_game_update)
+      it 'returns error for a game that has already ended' do
+        ended_game_engine.claim_draw
+        expect(listener).to have_received(:on_game_update).with(GameUpdate.failure(:game_already_ended))
       end
     end
   end
@@ -263,18 +265,62 @@ RSpec.describe Engine do
     end
 
     it "doesn't change the outcome of a game that has already ended" do
-      board = fill_board(
-        [
-          [Piece[:black, :king], Square[:a, 8]],
-          [Piece[:white, :king], Square[:c, 1]],
-          [Piece[:white, :queen], Square[:c, 7]]
-        ]
+      ended_game_engine.resign
+      expect(listener).not_to have_received(:on_game_update).with(
+        an_instance_of(GameUpdate).and(
+          have_attributes(endgame_status: GameOutcome[:white, :resignation])
+        )
       )
-      position = Position.start.with(board: board, current_color: :white, castling_rights: CastlingRights.none)
-      engine = engine_from_state(GameState.new(position: position), endgame_status: GameOutcome[:draw, :stalemate])
-      engine.add_listener(listener)
-      engine.resign
-      expect(listener).not_to have_received(:on_game_update)
+    end
+  end
+
+  describe 'session management' do
+    def a_new_session
+      satisfy('be a new session') { |update| update&.session&.new? }
+    end
+
+    def an_ongoing_session
+      satisfy('be an ongoing session') { |update| !update&.session&.new? }
+    end
+
+    it 'returns an error when a move is played with no active session' do
+      engine = Engine.new
+      result = engine.play_turn([MovePieceEvent[Square[:f, 2], Square[:f, 3]]])
+      expect(result.error).to eq(:no_ongoing_session)
+    end
+
+    it 'returns an error when another action is performed(draw offer, etc) with no active session' do
+      engine = Engine.new
+      actions = [
+        engine.offer_draw,
+        engine.accept_draw,
+        engine.resign
+      ]
+
+      actions.each do |result|
+        expect(result.error).to eq(:no_ongoing_session)
+      end
+    end
+
+    it 'marks the session as new immediately after starting the first game' do
+      expect(listener).to have_received(:on_game_update).with(a_new_session)
+    end
+
+    it 'marks the session as ongoing after the first move' do
+      engine.play_turn([MovePieceEvent[Square[:f, 2], Square[:f, 3]]])
+      expect(listener).to have_received(:on_game_update).with(an_ongoing_session)
+    end
+
+    it 'starts a new distinct session when a new game begins after an existing one' do
+      prev_session_result = engine.play_turn([MovePieceEvent[Square[:f, 2], Square[:f, 3]]])
+      prev_session = prev_session_result.session
+
+      engine.new_game
+      current_session = engine.last_update.session
+
+      # one for each session
+      expect(listener).to have_received(:on_game_update).with(a_new_session).twice
+      expect(current_session).not_to eq(prev_session)
     end
   end
 end

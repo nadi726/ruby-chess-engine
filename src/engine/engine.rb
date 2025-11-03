@@ -10,9 +10,14 @@ require_relative 'parsers/identity_parser'
 # It interprets structured input (chess notation) and translates it into concrete
 # state transitions, producing `GameUpdate` objects and notifying registered listeners.
 #
-# Each engine is responsible for a single game, and uses a single `Parser` for parsing notation.
-# `#initialize` starts a new game.
-# Use `::from_fen` to import a game to the engine, and `#to_fen` to export a game from an engine.
+# The engine is resposible for a single game session at a time.
+# On initiazlition, you must choose the notation parser the engine will use (or use the default one).
+#
+# After initializing an engine, you must begin a session either by:
+# - starting a new game with `#new_game`
+# - loading a game from existing state with `#from_fen`
+#
+# The game can be exported at any point with `#to_fen`.
 #
 # Clients advance the engine through two mechanisms:
 # - By playing a turn, via the `#play_turn` method.
@@ -20,23 +25,15 @@ require_relative 'parsers/identity_parser'
 #   Those actions are triggered by `#offer_draw`, `#accept_draw`, `#claim_draw` and `#resign` respectively.
 #
 # To observe game progress, clients can:
-# - Register as listeners and implement `#on_game_update(game_update)` to get turn-by-turn updates
-# - call the `#query` methods to get the current game snapshot
+# - Register as listeners and implement `#on_game_update(game_update)` to get turn-by-turn updates,
+#   as well as error messages(a `GameUpdate.failure` object) for an invalid client operation.
+# - call the `#last_update` method to get the last game update status.
 class Engine # rubocop:disable Metrics/ClassLength
+  DEFAULT_PARSER = IdentityParser.new.freeze
+
   def initialize(parser = nil)
-    @state = GameState.new
-    @parser = parser || IdentityParser.new
-    @endgame_status = nil # nil for an ongoing game, `GameOutcome` for a concluded game
-    @offered_draw = nil # color of whoever currently offers a draw, or nil if no draw is being offered
+    @parser = parser || DEFAULT_PARSER
     @listeners = []
-  end
-
-  def self.from_fen(fen_str, parser: nil)
-    # TODO
-  end
-
-  def to_fen
-    # TODO
   end
 
   def add_listener(listener)
@@ -45,7 +42,29 @@ class Engine # rubocop:disable Metrics/ClassLength
 
   def remove_listener(listener) = @listeners.delete(listener)
 
-  def query = @state.query
+  # Starts a new game. Resets the game's state and starts a new session.
+  def new_game
+    update_game(
+      state: GameState.new,
+      endgame_status: nil, # nil for an ongoing game, `GameOutcome` for a concluded game
+      offered_draw: nil, # color of whoever currently offers a draw, or nil if no draw is being offered
+      events: nil, # the last sequence of events that was applied
+      session: @session.nil? ? SessionInfo.started(0) : @session.next # the current session
+    )
+  end
+
+  def from_fen(fen_str, parser: nil)
+    # TODO
+  end
+
+  def to_fen
+    # TODO
+  end
+
+  # The last update that was made.
+  # Useful for directly retrieving the most recent GameUpdate,
+  # allowing inspection of game state changes without engaging with the listener model.
+  attr_reader :last_update
 
   # Plays one side’s turn.
   #
@@ -55,7 +74,7 @@ class Engine # rubocop:disable Metrics/ClassLength
   # Returns a corresponding `GameUpdate`.
   def play_turn(notation)
     result = interpret_turn notation
-    notify_listeners result
+    result.success? ? update_game(**result.success_attributes) : notify_listeners(result)
     result
   end
 
@@ -64,36 +83,37 @@ class Engine # rubocop:disable Metrics/ClassLength
   # the engine enforces that only the current player may do so,
   # which results in a simpler interface and therefore makes more sense from an engine perspective.
   def offer_draw
-    return if @endgame_status
+    failure = detect_general_failure || (GameUpdate.failure(:draw_offer_not_allowed) if @offered_draw)
 
-    @offered_draw = query.position.current_color
+    failure ? notify_listeners(failure) : update_game(offered_draw: query.position.current_color)
   end
 
   # Accepts a pending draw offer from the opponent and ends the game.
   # Does nothing if no offer exists.
   def accept_draw
-    return if @endgame_status
-    return unless @offered_draw && @offered_draw != query.position.current_color
+    invalid_offer = @offered_draw.nil? || @offered_draw == query&.position&.current_color
+    failure = detect_general_failure || (GameUpdate.failure(:draw_accept_not_allowed) if invalid_offer)
 
-    end_game(GameOutcome[:draw, :agreement])
+    failure ? notify_listeners(failure) : update_game(endgame_status: GameOutcome[:draw, :agreement])
   end
 
   # Claims a draw by rule (50-move rule or repetition) if eligible.
   # Does nothing if the claim is invalid.
-  def claim_draw
-    return if @endgame_status
-    return unless query.can_draw?
+  def claim_draw # rubocop:disable Metrics/CyclomaticComplexity
+    eligible_cause = if query&.threefold_repetition? then :threefold_repetition
+                     elsif query&.fifty_move_rule? then :fifty_move
+                     end
+    failure = detect_general_failure || (GameUpdate.failure(:draw_claim_not_allowed) unless eligible_cause)
 
-    cause = query.threefold_repetition? ? :threefold_repetition : :fifty_move
-    end_game(GameOutcome[:draw, cause])
+    failure ? notify_listeners(failure) : update_game(endgame_status: GameOutcome[:draw, eligible_cause])
   end
 
   # Resign and end the game immediately.
   def resign
-    return if @endgame_status
+    failure = detect_general_failure
+    winner = query&.position&.other_color # For non-failure
 
-    winner = query.position.other_color
-    end_game(GameOutcome[winner, :resignation])
+    failure ? notify_listeners(failure) : update_game(endgame_status: GameOutcome[winner, :resignation])
   end
 
   private
@@ -101,7 +121,8 @@ class Engine # rubocop:disable Metrics/ClassLength
   # Interprets a move notation through all internal processing stages.
   # If valid, advances the engine state; Returns a `GameUpdate`.
   def interpret_turn(notation)
-    return GameUpdate.failure(:game_already_ended) if @endgame_status
+    failure = detect_general_failure
+    return failure unless failure.nil?
 
     events = parse_notation(notation)
     return GameUpdate.failure(:invalid_notation) unless events
@@ -123,8 +144,7 @@ class Engine # rubocop:disable Metrics/ClassLength
   #
   # On success:
   # - Applies events to the current `GameState`
-  # - Updates endgame and offered draw status
-  # - Returns a `GameUpdate.success`
+  # - Returns a `GameUpdate.success` with updated fields
   #
   # On failure:
   # - Returns a `GameUpdate.failure(:invalid_event_sequence)`
@@ -134,54 +154,67 @@ class Engine # rubocop:disable Metrics/ClassLength
     result = event_handler.process
     return GameUpdate.failure(:invalid_event_sequence) if result.failure?
 
-    @state = @state.apply_events(result.events)
-    # Clear draw offer if the opponent just moved without accepting
-    @offered_draw = nil if @state.position.current_color == @offered_draw
-    @endgame_status = detect_endgame_status
-
+    state = @state.apply_events(result.events)
     GameUpdate.success(
       events: result.events,
-      game_query: @state.query,
-      in_check: @state.query.in_check?,
-      endgame_status: @endgame_status
+      state: state,
+      endgame_status: detect_endgame_status(state.query),
+      # Clear draw offer if the opponent just moved without accepting
+      offered_draw: state.position.current_color == @offered_draw ? nil : @offered_draw,
+      session: @session.current
     )
+  end
+
+  # Updates the engine with the provided fields:
+  # - updates the specified subset of instance variables related to current game session
+  # - notifies listeners of the update and returns it
+  def update_game(state: :not_provided, endgame_status: :not_provided, offered_draw: :not_provided,
+                  session: :not_provided, events: :not_provided)
+    @state = state unless state == :not_provided
+    @endgame_status = endgame_status unless endgame_status == :not_provided
+    @offered_draw = offered_draw unless offered_draw == :not_provided
+    @session = session unless session == :not_provided
+    @events = events unless events == :not_provided
+    @last_update = GameUpdate.success(events: @events, state: @state, endgame_status: @endgame_status,
+                                      offered_draw: @offered_draw, session: @session)
+    notify_listeners(@last_update)
+    @last_update
   end
 
   def notify_listeners(game_update)
     @listeners.each do |listener|
       listener.on_game_update(game_update)
     end
+    game_update
   end
 
-  # Checks the current state for checkmate or automatic draw conditions.
+  # Checks the given state for checkmate or automatic draw conditions.
+  # The provided `GameQuery` should reflect the latest position after a move,
+  # so this method always returns the endgame status resulting from the most recent update.
   # Returns a `GameOutcome` object if the game has ended, otherwise returns nil
-  def detect_endgame_status
+  def detect_endgame_status(query)
     return GameOutcome[query.position.other_color, :checkmate] if query.in_checkmate?
-    return unless query.must_draw?
+    return nil unless query.must_draw?
 
-    cause = if query.stalemate?
-              :stalemate
-            elsif query.insufficient_material?
-              :insufficient_material
-            else
-              :fivefold_repetition # TODO: - not implemented yet
-            end
+    cause =
+      if query.stalemate? then :stalemate
+      elsif query.insufficient_material? then :insufficient_material
+      else
+        :fivefold_repetition # TODO
+      end
     GameOutcome[:draw, cause]
   end
 
-  # Updates endgame status, notifies listeners, and returns the corresponding `GameUpdate`.
-  # Only used for explicit game-ending actions (resign, accept_draw, claim_draw).
-  def end_game(game_outcome)
-    @endgame_status = game_outcome
-    game_update = GameUpdate.success(
-      events: [],
-      game_query: query,
-      in_check: query.in_check?,
-      endgame_status: game_outcome
-    )
-    notify_listeners(game_update)
-    game_update
+  # General detection for invalid client action
+  def detect_general_failure
+    return GameUpdate.failure(:no_ongoing_session) unless @session
+    return GameUpdate.failure(:game_already_ended) if @endgame_status
+
+    nil
   end
+
+  # Convenience accessor
+  def query = @state&.query
 
   # Allows controlled creation from arbitrary state.
   # Used by test suites and FEN importers only.
@@ -192,6 +225,7 @@ class Engine # rubocop:disable Metrics/ClassLength
     engine.instance_variable_set(:@endgame_status, endgame_status)
     engine.instance_variable_set(:@offered_draw, offered_draw)
     engine.instance_variable_set(:@listeners, [])
+    engine.instance_variable_set(:@session, SessionInfo.started(-1))
     engine
   end
 end
@@ -200,31 +234,60 @@ end
 #
 # On success, it contains:
 # - The event sequence that describes what happened.
-# - Whether the current player is in check.
+# - The full `GameState` and `GameQuery` for inspection.
 # - The current endgame status (if any).
-# - The full `GameQuery` for advanced inspection.
+# - The current draw offer status.
+# - Metadata about the current game session.
 #
-# On failure, only `error` is set (one of :invalid_notation, :invalid_event_sequence, :game_already_ended).
+# On failure, containts only `error`, which is one of:
+# - `:invalid_notation`
+# - `:invalid_event_sequence`
+# - `:game_already_ended`
+# - `:no_ongoing_session`
+# - `:draw_offer_not_allowed`
+# - `:draw_accept_not_allowed`
+# - `:draw_claim_not_allowed`
 #
 # Note: `error` may later be replaced with a structured object to support
 # more detailed error handling.
 #
 # Typically, clients should rely on the event sequence and status fields;
 # direct access to `GameQuery` is for specialized use cases.
-GameUpdate = Data.define(:events, :game_query, :in_check, :endgame_status, :error) do
+GameUpdate = Data.define(:events, :state, :endgame_status, :offered_draw, :session, :error) do
   def success? = error.nil?
   def failure? = !success?
-  def game_ended? = !endgame_status.nil?
 
-  def self.success(events:, game_query:, in_check:, endgame_status:)
-    new(events.freeze, game_query, in_check, endgame_status, nil)
+  def self.success(events:, state:, endgame_status:, offered_draw:, session:)
+    new(events.freeze, state, endgame_status, offered_draw, session, nil)
   end
 
   def self.failure(error)
-    new(nil, nil, nil, nil, error)
+    new(nil, nil, nil, nil, nil, error)
   end
 
+  # A successful result has no `error` field
+  def success_attributes
+    to_h.except(:error)
+  end
+
+  # A failed result has only an `error` field
+  def failure_attributes
+    { error: error }
+  end
+
+  def game_ended? = !endgame_status.nil?
+  def game_query = state.query
+  def in_check? = game_query.in_check?
+
   private_class_method :new # enforces use of factories
+end
+
+# Metadata about the current game session
+SessionInfo = Data.define(:id, :new?) do
+  def self.ongoing(id) = new(id, false)
+  def self.started(id) = new(id, true)
+  def next = self.class.started(id + 1)
+  def current = self.class.ongoing(id)
 end
 
 # winner is one of: :white, :black, :draw
