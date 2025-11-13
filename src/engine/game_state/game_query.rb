@@ -6,7 +6,7 @@ require_relative 'no_legal_moves_helper'
 
 # Provides derived information about the current game state.
 #
-# GameQuery acts as the single entry point for all game-related queries.
+# `GameQuery` acts as the single entry point for all game-related queries.
 # It exposes methods for:
 # - **Check and checkmate detection** (`in_check?`, `in_checkmate?`)
 # - **draw detection** ( `must_draw?`, `in_draw?`, and detailed draw queries like `stalemate?` )
@@ -37,6 +37,8 @@ class GameQuery
     piece.threatened_squares(board, from).include?(target_square)
   end
 
+  # Determine whether a piece at square "from" can move to "to" without capturing,
+  # not taking into account other considerations like pins.
   def piece_can_move?(from, to)
     piece = board.get(from)
     all_pieces.include?(piece) && board.get(to).nil? && piece.moves(board, from).include?(to)

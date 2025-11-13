@@ -5,77 +5,76 @@ require_relative 'event_result'
 
 # Base class for all event handlers.
 #
-# Each handler validates a main event (and any accompanying extras)
-# against the current game state. It either produces a fully resolved
-# event list (suitable for application to the GameState), or returns an error.
+# Each handler validates an event against the current game state.
+# It either produces a fully resolved event (suitable for application to the `GameState`), or returns an error.
 #
-# This class defines shared behavior and lifecycle:
-# 1. `#process` — implemented by subclasses, checks and expands the event sequence.
-# 2. `#post_process` — generic logic applied to all valid results (e.g. check status).
-#
-# Subclasses must implement `#handle`.
-# Consumers should only call `#process`.
+# The main entry point is `#process`, and it is shared accross all subclasses.
+# For specific event handling functionality, subclasses must implement `#resolve`.
 class EventHandler
-  attr_reader :query, :main, :extras
+  attr_reader :query, :event
 
-  def initialize(query, main, extras)
+  def initialize(query, event)
     @query = query
-    @main = main
-    @extras = extras
+    @event = event
   end
 
   # Primary entry point.
-  # Validates and completes the event sequence, returning an `EventResult`.
+  # Validates and completes the event, returning an `EventResult`.
   def process
-    result = validate_and_resolve
+    result = resolve
     return result if result.failure?
 
-    post_process(result.events)
+    post_process(result.event)
   end
 
   private
 
   # To be implemented by subclasses.
-  # Validates and resolves the main event (plus any extras) into a fully
-  # determined sequence of low-level events suitable for `GameState` application.
-  # Returns an `EventResult` with either the finalized sequence or an error.
-  def validate_and_resolve
+  # Validates and resolves the given `GameEvent` into a full, valid event, suitable for `GameState` application.
+  # Returns an `EventResult` with either the finalized event or an error.
+  def resolve
     raise NotImplementedError
   end
 
   # Common post-processing logic, applied to all valid results.
   # (e.g., flagging check or checkmate events, enforcing turn-based constraints, etc.)
-  def post_process(events)
-    return invalid_result if next_turn_in_check?(events)
+  def post_process(event)
+    return invalid_result if next_turn_in_check?(event)
 
-    valid_result events # Placeholder
+    EventResult.success(event) # Placeholder
   end
 
-  def next_turn_in_check?(events)
-    new_query = query.state.apply_events(events).query
+  def next_turn_in_check?(event)
+    new_query = query.state.apply_event(event).query
     new_query.in_check?(query.position.current_color)
   end
 
-  def valid_result(events)
-    EventResult.success events
+  ### Helpers for subclasses
+
+  # Runs a series of resolution steps in order.
+  # Stops when out of steps, or when result doesn't match the specified condition.
+  # By default, the condition is for `result` to be succesful.
+  # You can set custom stop conditions for specific steps using `stop_conditions`.
+  #
+  # `steps`: a series of method names on `self` to execute. Each step takes the event and returns an `EventResult`.
+  # `stop_conditions`: a hash where each key is a step and the value is a condition lambda.
+  def run_resolution_pipeline(*steps, **stop_conditions)
+    default_condition = lambda(&:success?)
+    result = EventResult.success(event)
+    steps.each do |step|
+      result = send(step, result.event)
+      condition = stop_conditions.fetch(step, default_condition)
+      return result unless condition.call(result)
+    end
+    result
   end
 
-  def invalid_result(error = '')
-    EventResult.failure error
+  def invalid_result(msg = '')
+    msg = "Message: #{msg}" unless msg.empty?
+    EventResult.failure("Invalid result for #{event.inspect}. #{msg}")
   end
 
-  # Only for event handlers that should have them.
-  # Always use those methods to access the memoized value - do not access it directly.
-
-  # TODO: - autofill for events that miss this field
-  #         or decide it is the responsibility of the parser and return an error.
-  def from_piece
-    return nil unless main&.from
-
-    @from_piece ||= @query.board.get(main.from)
-  end
-
-  def to_piece
-    @to_piece ||= query.board.get(main.to)
-  end
+  # Useful accessors
+  def board = @query.board
+  def current_color = query.position.current_color
 end

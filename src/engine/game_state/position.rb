@@ -6,6 +6,10 @@ require_relative 'board'
 # Rights may be lost due to moving the king or rook, or other game events.
 
 CastlingSide = Data.define(:kingside, :queenside) do
+  def self.start
+    new(true, true)
+  end
+
   def self.none
     new(false, false)
   end
@@ -15,8 +19,8 @@ CastlingRights = Data.define(
 ) do
   def self.start
     CastlingRights[
-      CastlingSide[true, true],
-      CastlingSide[true, true]
+      CastlingSide.start,
+      CastlingSide.start
     ]
   end
 
@@ -28,7 +32,7 @@ CastlingRights = Data.define(
   end
 
   def get_side(color)
-    color == :white ? white : black
+    { white: white, black: black }[color]
   end
 end
 

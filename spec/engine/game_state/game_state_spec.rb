@@ -5,26 +5,42 @@ require 'data_definitions/events'
 require 'data_definitions/square'
 require 'data_definitions/piece'
 
+# For the given `GameState`, determine whether a square is occupied by a certian piece
+RSpec::Matchers.define :have_piece_at do |sq, expected_piece|
+  match do |actual_state|
+    actual_piece = actual_state.query.board.get(sq)
+    actual_piece == expected_piece
+  end
+
+  failure_message do |actual_state|
+    actual_piece = actual_state.query.board.get(sq)
+    "Expected #{sq} to have #{expected_piece || 'empty'}, but got #{actual_piece || 'empty'}"
+  end
+end
+
+RSpec::Matchers.define :be_empty_at do |sq|
+  match do |actual_state|
+    have_piece_at(sq, nil).matches?(actual_state)
+  end
+end
+
 RSpec.describe GameState do
-  describe '#apply_events' do
+  describe '#apply_event' do
     describe 'board advancement' do
       context 'simple moves' do
         it 'applies a sequence of simple moves correctly' do
-          from_to_piece = [
+          piece_from_to = [
             ['b2 b3', Piece[:white, :pawn]],
             ['g7 g5', Piece[:black, :pawn]],
             ['h2 h4', Piece[:white, :pawn]],
             ['b8 a6', Piece[:black, :knight]],
             ['h1 h3', Piece[:white, :rook]]
-          ].map { |squares, piece| parse_squares(squares) + [piece] }
+          ].map { |squares, piece| [piece] + parse_squares(squares) }
 
           gamestate = start_state
-          from_to_piece.each do |from, to, piece|
-            event = MovePieceEvent[from, to, piece]
-            gamestate = gamestate.apply_events([event])
-          end
-
-          from_to_piece.each do |_from, to, piece| # rubocop:disable Style/CombinableLoops
+          piece_from_to.each do |piece, from, to|
+            event = MovePieceEvent[piece, from, to]
+            gamestate = gamestate.apply_event(event)
             expect(gamestate).to have_piece_at(to, piece)
           end
         end
@@ -35,8 +51,8 @@ RSpec.describe GameState do
             { from: Square[:e, 2], to: Square[:e, 3], piece: Piece[:white, :pawn] },
             { from: Square[:g, 2], to: Square[:g, 4], piece: Piece[:white, :pawn] }
           ].each do |tc|
-            event = MovePieceEvent[tc[:from], tc[:to], tc[:piece]]
-            gamestate = start_state.apply_events([event])
+            event = MovePieceEvent[tc[:piece], tc[:from], tc[:to]]
+            gamestate = start_state.apply_event(event)
             expect(gamestate).to be_empty_at(tc[:from])
             expect(gamestate).to have_piece_at(tc[:to], tc[:piece])
           end
@@ -84,11 +100,9 @@ RSpec.describe GameState do
           }
         ].each do |params|
           it "allows a #{params[:description]}" do
-            gamestate = capture_state.apply_events(
-              [
-                MovePieceEvent[params[:from], params[:to], params[:capturing_piece]],
-                RemovePieceEvent[params[:to], params[:captured_piece]]
-              ]
+            gamestate = capture_state.apply_event(
+              MovePieceEvent[params[:capturing_piece], params[:from], params[:to]]
+              .capture(params[:to], params[:captured_piece])
             )
             expect(gamestate).to be_empty_at(params[:from])
             expect(gamestate).to have_piece_at(params[:to], params[:capturing_piece])
@@ -101,7 +115,7 @@ RSpec.describe GameState do
           # Helper that runs the castling and asserts
           def expect_castling_on(event:, initial_board:, state: nil) # rubocop:disable Metrics/AbcSize
             state ||= GameState.new(position: Position.start.with(board: initial_board))
-            new_state = state.apply_events([event])
+            new_state = state.apply_event(event)
             expect(new_state).to have_piece_at(event.king_to, Piece[event.color, :king])
             expect(new_state).to have_piece_at(event.rook_to, Piece[event.color, :rook])
             expect(new_state).to be_empty_at(event.king_from)
@@ -118,7 +132,7 @@ RSpec.describe GameState do
             )
 
             expect_castling_on(
-              event: CastlingEvent[:white, :kingside],
+              event: CastlingEvent[:kingside, :white],
               initial_board: board
             )
           end
@@ -132,31 +146,31 @@ RSpec.describe GameState do
               ]
             )
             expect_castling_on(
-              event: CastlingEvent[:white, :queenside],
+              event: CastlingEvent[:queenside, :white],
               initial_board: board
             )
           end
 
           it 'executes kingside castling via move sequence (integration)' do
             event_history = [
-              MovePieceEvent[Square[:g, 1], Square[:f, 3], Piece[:white, :knight]],
-              MovePieceEvent[Square[:h, 7], Square[:h, 6], Piece[:black, :pawn]],
-              MovePieceEvent[Square[:e, 2], Square[:e, 3], Piece[:white, :pawn]],
-              MovePieceEvent[Square[:b, 7], Square[:b, 5], Piece[:black, :pawn]],
-              MovePieceEvent[Square[:f, 1], Square[:e, 2], Piece[:white, :bishop]],
-              MovePieceEvent[Square[:a, 7], Square[:a, 5], Piece[:black, :pawn]]
+              MovePieceEvent[Piece[:white, :knight], Square[:g, 1], Square[:f, 3]],
+              MovePieceEvent[Piece[:black, :pawn], Square[:h, 7], Square[:h, 6]],
+              MovePieceEvent[Piece[:white, :pawn], Square[:e, 2], Square[:e, 3]],
+              MovePieceEvent[Piece[:black, :pawn], Square[:b, 7], Square[:b, 5]],
+              MovePieceEvent[Piece[:white, :bishop], Square[:f, 1], Square[:e, 2]],
+              MovePieceEvent[Piece[:black, :pawn], Square[:a, 7], Square[:a, 5]]
             ]
 
-            state = event_history.reduce(start_state) { |state, event| state.apply_events([event]) }
+            state = event_history.reduce(start_state) { |state, event| state.apply_event(event) }
             expect_castling_on(
-              event: CastlingEvent[:white, :kingside],
+              event: CastlingEvent[:kingside, :white],
               initial_board: state.query.board,
               state: state
             )
           end
         end
         context 'applies en passant correctly' do
-          let(:en_passant_sequence) { [EnPassantEvent[Square[:e, 5], Square[:d, 6]]] }
+          let(:en_passant_event) { EnPassantEvent[:white, Square[:e, 5], Square[:d, 6]] }
 
           def expect_en_passant_applied(gamestate)
             expect(gamestate).to be_empty_at(Square[:e, 5])
@@ -168,28 +182,28 @@ RSpec.describe GameState do
             board = start_board
                     .move(Square[:e, 2], Square[:e, 5])
                     .move(Square[:d, 7], Square[:d, 5])
-            black_pawn_move = MovePieceEvent[Square[:d, 7], Square[:d, 5], Piece[:black, :pawn]]
+            black_pawn_move = MovePieceEvent[Piece[:black, :pawn], Square[:d, 7], Square[:d, 5]]
             # Realistically, the en passant validity is pre-computed from the target,
             # so this is unnecessary, but added here for good measure
-            move_history = Immutable::List[Immutable::List[black_pawn_move]]
+            move_history = Immutable::List[black_pawn_move]
 
             gamestate = GameState.new(position: Position.start.with(board: board, en_passant_target: Square[:d, 6]),
                                       move_history: move_history)
-            gamestate = gamestate.apply_events(en_passant_sequence)
+            gamestate = gamestate.apply_event(en_passant_event)
 
             expect_en_passant_applied(gamestate)
           end
 
           it 'works through real move sequence (integration)' do
             event_history = [
-              MovePieceEvent[Square[:e, 2], Square[:e, 4], Piece[:white, :pawn]],
-              MovePieceEvent[Square[:c, 7], Square[:c, 5], Piece[:black, :pawn]],
-              MovePieceEvent[Square[:e, 4], Square[:e, 5], Piece[:white, :pawn]],
-              MovePieceEvent[Square[:d, 7], Square[:d, 5], Piece[:black, :pawn]]
+              MovePieceEvent[Piece[:white, :pawn], Square[:e, 2], Square[:e, 4]],
+              MovePieceEvent[Piece[:black, :pawn], Square[:c, 7], Square[:c, 5]],
+              MovePieceEvent[Piece[:white, :pawn], Square[:e, 4], Square[:e, 5]],
+              MovePieceEvent[Piece[:black, :pawn], Square[:d, 7], Square[:d, 5]]
             ]
 
-            gamestate = event_history.reduce(start_state) { |state, event| state.apply_events([event]) }
-            gamestate = gamestate.apply_events(en_passant_sequence)
+            gamestate = event_history.reduce(start_state) { |state, event| state.apply_event(event) }
+            gamestate = gamestate.apply_event(en_passant_event)
 
             expect_en_passant_applied(gamestate)
           end
@@ -203,12 +217,12 @@ RSpec.describe GameState do
                 .move(Square[:e, 2], Square[:e, 5])
                 .move(Square[:d, 7], Square[:d, 5])
                 .move(Square[:b, 1], Square[:a, 3])
-        black_king_move = MovePieceEvent[Square[:e, 8], Square[:d, 7], Piece[:black, :king]]
+        black_king_move = MovePieceEvent[Piece[:black, :king], Square[:e, 8], Square[:d, 7]]
 
         gamestate = GameState.new(position: Position.start.with(board: board, current_color: :black))
-        gamestate = gamestate.apply_events([black_king_move])
+        gamestate = gamestate.apply_event(black_king_move)
         position = gamestate.query.position
-        empty_castling_rights = CastlingRights[CastlingSide[true, true], CastlingSide[false, false]]
+        empty_castling_rights = CastlingRights[CastlingSide.start, CastlingSide.none]
         expect(position.castling_rights).to eq empty_castling_rights
       end
       it 'revokes correct rook side when rook moves' do
@@ -216,43 +230,43 @@ RSpec.describe GameState do
         board = start_board
                 .remove(Square[:b, 1])
                 .remove(Square[:c, 1])
-        white_rook_move = MovePieceEvent[Square[:a, 1], Square[:a, 3], Piece[:white, :rook]]
+        white_rook_move = MovePieceEvent[Piece[:white, :rook], Square[:a, 1], Square[:a, 3]]
 
         gamestate = GameState.new(position: Position.start.with(board: board))
-        gamestate = gamestate.apply_events([white_rook_move])
+        gamestate = gamestate.apply_event(white_rook_move)
         position = gamestate.query.position
 
         expect(position.castling_rights.white).to eq CastlingSide[kingside: true, queenside: false]
-        expect(position.castling_rights.black).to eq CastlingSide[true, true] # unchanged
+        expect(position.castling_rights.black).to eq CastlingSide.start # unchanged
       end
       it 'updates correctly after castling' do
         # Setup: clear path for white kingside castling
         board = start_board
                 .remove(Square[:f, 1])
                 .remove(Square[:g, 1])
-        castling_event = CastlingEvent[:white, :kingside]
+        castling_event = CastlingEvent[:kingside, :white]
 
         gamestate = GameState.new(position: Position.start.with(board: board))
-        gamestate = gamestate.apply_events([castling_event])
+        gamestate = gamestate.apply_event(castling_event)
         position = gamestate.query.position
 
-        expect(position.castling_rights.white).to eq CastlingSide[false, false]
-        expect(position.castling_rights.black).to eq CastlingSide[true, true] # unaffected
+        expect(position.castling_rights.white).to eq CastlingSide.none
+        expect(position.castling_rights.black).to eq CastlingSide.start # unaffected
       end
     end
 
     describe 'en passant target updates' do
       it 'sets en passant target after two-square pawn move' do
-        move_event = MovePieceEvent[Square[:f, 2], Square[:f, 4], Piece[:white, :pawn]]
-        gamestate = GameState.start.apply_events([move_event])
+        move_event = MovePieceEvent[Piece[:white, :pawn], Square[:f, 2], Square[:f, 4]]
+        gamestate = GameState.start.apply_event(move_event)
         position = gamestate.query.position
         expect(position.en_passant_target).to eq(Square[:f, 3])
       end
       it 'resets en passant target when not applicable' do
-        move_event = MovePieceEvent[Square[:g, 8], Square[:f, 6], Piece[:black, :knight]]
+        move_event = MovePieceEvent[Piece[:black, :knight], Square[:g, 8], Square[:f, 6]]
         gamestate = GameState.new(position: Position.start.with(en_passant_target: Square[:d, 3],
                                                                 current_color: :black))
-        gamestate = gamestate.apply_events([move_event])
+        gamestate = gamestate.apply_event(move_event)
         position = gamestate.query.position
         expect(position.en_passant_target).to eq(nil)
       end
@@ -265,13 +279,13 @@ RSpec.describe GameState do
 
         expect(current_color.call).to eq(:white)
 
-        game_state = game_state.apply_events(
-          [MovePieceEvent[Square[:f, 2], Square[:f, 4], Piece[:white, :pawn]]]
+        game_state = game_state.apply_event(
+          MovePieceEvent[Piece[:white, :pawn], Square[:f, 2], Square[:f, 4]]
         )
         expect(current_color.call).to eq(:black)
 
-        game_state = game_state.apply_events(
-          [MovePieceEvent[Square[:g, 8], Square[:f, 6], Piece[:black, :knight]]]
+        game_state = game_state.apply_event(
+          MovePieceEvent[Piece[:black, :knight], Square[:g, 8], Square[:f, 6]]
         )
         expect(current_color.call).to eq(:white)
       end
@@ -283,9 +297,9 @@ RSpec.describe GameState do
 
         it 'increments correctly' do
           s0 = GameState.start
-          s1 = s0.apply_events([MovePieceEvent[Square[:g, 1], Square[:f, 3], Piece[:white, :knight]]])
-          s2 = s1.apply_events([MovePieceEvent[Square[:b, 8], Square[:c, 6], Piece[:black, :knight]]])
-          s3 = s2.apply_events([MovePieceEvent[Square[:f, 3], Square[:g, 1], Piece[:white, :knight]]])
+          s1 = s0.apply_event(MovePieceEvent[Piece[:white, :knight], Square[:g, 1], Square[:f, 3]])
+          s2 = s1.apply_event(MovePieceEvent[Piece[:black, :knight], Square[:b, 8], Square[:c, 6]])
+          s3 = s2.apply_event(MovePieceEvent[Piece[:white, :knight], Square[:f, 3], Square[:g, 1]])
 
           expect(halfmove_clock(s0)).to eq 0
           expect(halfmove_clock(s1)).to eq 1
@@ -297,8 +311,7 @@ RSpec.describe GameState do
           position = Position.start.with(halfmove_clock: 2)
           state = GameState.new(position: position)
 
-          new_state = state.apply_events([MovePieceEvent[Square[:e, 2], Square[:e, 4],
-                                                         Piece[:white, :pawn]]])
+          new_state = state.apply_event(MovePieceEvent[Piece[:white, :pawn], Square[:e, 2], Square[:e, 4]])
           expect(halfmove_clock(new_state)).to eq(0)
         end
 
@@ -315,11 +328,9 @@ RSpec.describe GameState do
           position = Position.start.with(board: board, halfmove_clock: 10)
           state = GameState.new(position: position)
 
-          new_state = state.apply_events(
-            [
-              MovePieceEvent[Square[:e, 4], Square[:d, 5], Piece[:white, :pawn]],
-              RemovePieceEvent[Square[:d, 5], Piece[:black, :pawn]]
-            ]
+          new_state = state.apply_event(
+            MovePieceEvent[Piece[:white, :pawn], Square[:e, 4], Square[:d, 5]]
+            .capture(Square[:d, 5], Piece[:black, :pawn])
           )
 
           expect(halfmove_clock(new_state)).to eq 0
@@ -338,8 +349,7 @@ RSpec.describe GameState do
           position = Position.start.with(board: board, en_passant_target: Square[:d, 6], halfmove_clock: 13)
           state = GameState.new(position: position)
 
-          new_state = state.apply_events([EnPassantEvent[Square[:e, 5], Square[:d, 6]]])
-
+          new_state = state.apply_event(EnPassantEvent[:white, Square[:e, 5], Square[:d, 6]])
           expect(halfmove_clock(new_state)).to eq 0
         end
       end
@@ -358,7 +368,7 @@ RSpec.describe GameState do
             en_passant_target: nil,
             castling_rights: CastlingRights[
                               CastlingSide[true, false],
-                              CastlingSide[false, false]
+                              CastlingSide.none
                             ],
             halfmove_clock: 2
           ]
@@ -366,15 +376,15 @@ RSpec.describe GameState do
           alt_position = base_position.with(current_color: :black)
 
           gamestate1 = GameState.new(position: base_position)
-                                .apply_events([MovePieceEvent[Square[:e, 1], Square[:e, 2], Piece[:white, :king]]])
+                                .apply_event(MovePieceEvent[Piece[:white, :king], Square[:e, 1], Square[:e, 2]])
 
           gamestate2 = GameState.new(position: alt_position)
-                                .apply_events([MovePieceEvent[Square[:e, 8], Square[:e, 7], Piece[:black, :king]]])
+                                .apply_event(MovePieceEvent[Piece[:black, :king], Square[:e, 8], Square[:e, 7]])
 
           # The original position should be counted once
           expect(gamestate1.query.position_signatures.fetch(base_position.signature, 0)).to eq(1)
 
-          # A state from a different starting Position should not increment the same signature
+          # A state from a different starting `Position` should not increment the same signature
           expect(gamestate2.query.position_signatures.fetch(base_position.signature, 0)).to eq(0)
         end
 
@@ -382,15 +392,15 @@ RSpec.describe GameState do
           s0 = GameState.start
           base_sig = s0.query.position.signature
 
-          s1 = s0.apply_events([MovePieceEvent[Square[:g, 1], Square[:f, 3], Piece[:white, :knight]]])
-          s2 = s1.apply_events([MovePieceEvent[Square[:b, 8], Square[:c, 6], Piece[:black, :knight]]])
-          s3 = s2.apply_events([MovePieceEvent[Square[:f, 3], Square[:g, 1], Piece[:white, :knight]]])
-          s4 = s3.apply_events([MovePieceEvent[Square[:c, 6], Square[:b, 8], Piece[:black, :knight]]])
+          s1 = s0.apply_event(MovePieceEvent[Piece[:white, :knight], Square[:g, 1], Square[:f, 3]])
+          s2 = s1.apply_event(MovePieceEvent[Piece[:black, :knight], Square[:b, 8], Square[:c, 6]])
+          s3 = s2.apply_event(MovePieceEvent[Piece[:white, :knight], Square[:f, 3], Square[:g, 1]])
+          s4 = s3.apply_event(MovePieceEvent[Piece[:black, :knight], Square[:c, 6], Square[:b, 8]])
 
           expect(s4.query.position.signature).to eq(base_sig)
           expect(s4.query.position_signatures.fetch(base_sig, 0)).to eq(1)
 
-          s5 = s4.apply_events([MovePieceEvent[Square[:a, 2], Square[:a, 3], Piece[:white, :pawn]]])
+          s5 = s4.apply_event(MovePieceEvent[Piece[:white, :pawn], Square[:a, 2], Square[:a, 3]])
           expect(s5.query.position_signatures.fetch(base_sig, 0)).to eq(2)
         end
       end

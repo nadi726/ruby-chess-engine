@@ -2,11 +2,11 @@
 
 require_relative '../errors'
 
-# Represents chessboard sqaures, each with a rank and a file,
+# Represents chessboard squares, each with a rank and a file,
 # and provides methods for validation, conversion, and manipulation of squares within the chess engine.
-# An invalid `Square` (e.g. off the board) may be created,
-# but must not be used, and doing so will result in an error.
-# It is the responsibility of whoever uses the object to check validity using the `#valid?` method before use.
+#
+# An invalid `Square` (e.g., off the board) can be created but must not be used, as this will cause an error.
+# Ensure validity with `#valid?` before usage.
 class Square
   FILES = (:a..:h).to_a.freeze
   RANKS = (1..8).to_a.freeze
@@ -49,11 +49,25 @@ class Square
     [file_distance, rank_distance]
   end
 
+  # Returns true if self is partially included in the other square.
+  # For this method, self doesn't have to be a full, valid square.
+  # It can have any of the following: specific rank and file,
+  # specific file (nil rank), specific rank (nil file), or both being nil.
+  # `other` is a complete, valid square.
+  def matches?(other)
+    file_matches = file.nil? || file == other.file
+    rank_matches = rank.nil? || rank == other.rank
+
+    file_matches && rank_matches
+  end
+
   def valid?
     FILES.include?(file) && RANKS.include?(rank)
   end
 
   def to_s
+    return "#<Square (INVALID) file=#{file.inspect}, rank=#{rank.inspect}>" unless valid?
+
     "#{file}#{rank}"
   end
 
@@ -74,7 +88,7 @@ class Square
     [file, rank].hash
   end
 
-  # For Square[file, rank] syntax.
+  # For `Square[file, rank]` syntax.
   # Makes it clearer that this is a value object, similar to Data
   def self.[](file, rank)
     new(file, rank)

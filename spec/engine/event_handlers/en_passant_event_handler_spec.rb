@@ -19,7 +19,7 @@ RSpec.describe EnPassantEventHandler do
   end
 
   let(:move_history) do
-    Immutable::List[Immutable::List[black_pawn_move]]
+    Immutable::List[black_pawn_move]
   end
 
   let(:query) do
@@ -34,32 +34,32 @@ RSpec.describe EnPassantEventHandler do
   end
 
   it 'accepts valid en passant' do
-    event = EnPassantEvent[Square[:e, 5], Square[:d, 6]]
-    handler = EnPassantEventHandler.new(query, event, [])
+    event = EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]]
+    handler = EnPassantEventHandler.new(query, event)
     expect(handler.process).to be_a_successful_handler_result
   end
 
   it 'rejects if given event is not en passant' do
-    event = MovePieceEvent[Square[:c, 2], Square[:c, 3], nil]
-    handler = EnPassantEventHandler.new(query, event, [])
+    event = MovePieceEvent[nil, Square[:c, 2], Square[:c, 3]]
+    handler = EnPassantEventHandler.new(query, event)
     expect(handler.process).to be_a_failed_handler_result
   end
 
   it 'rejects if target square is not valid en passant target' do
-    event = EnPassantEvent[Square[:c, 2], Square[:c, 3]]
-    handler = EnPassantEventHandler.new(query, event, [])
+    event = EnPassantEvent[nil, Square[:c, 2], Square[:c, 3]]
+    handler = EnPassantEventHandler.new(query, event)
     expect(handler.process).to be_a_failed_handler_result
   end
 
   it 'rejects if moving piece is not a pawn' do
-    event = EnPassantEvent[Square[:b, 1], Square[:a, 3]]
-    handler = EnPassantEventHandler.new(query, event, [])
+    event = EnPassantEvent[Piece[:white, :knight], Square[:b, 1], Square[:a, 3]]
+    handler = EnPassantEventHandler.new(query, event)
     expect(handler.process).to be_a_failed_handler_result
   end
 
   it 'rejects if last move was not a double-step pawn move' do
-    one_step_move = MovePieceEvent[Square[:d, 6], Square[:d, 5], Piece[:black, :pawn]]
-    move_history = Immutable::List[Immutable::List[one_step_move]]
+    one_step_move = MovePieceEvent[Piece[:black, :pawn], Square[:d, 6], Square[:d, 5]]
+    move_history = Immutable::List[one_step_move]
     query = GameQuery.new(
       Position.start.with(
         board: board,
@@ -68,15 +68,15 @@ RSpec.describe EnPassantEventHandler do
       ),
       move_history
     )
-    event = EnPassantEvent[Square[:e, 5], Square[:d, 6]]
-    handler = EnPassantEventHandler.new(query, event, [])
+    event = EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]]
+    handler = EnPassantEventHandler.new(query, event)
     expect(handler.process).to be_a_failed_handler_result
   end
 
   it 'rejects if not immediate (other move played in between)' do
-    black_double_push = MovePieceEvent[Square[:d, 7], Square[:d, 5], Piece[:black, :pawn]]
-    some_other_move = MovePieceEvent[Square[:c, 1], Square[:e, 3], Piece[:white, :bishop]]
-    move_history = Immutable::List[Immutable::List[black_double_push], Immutable::List[some_other_move]]
+    black_double_push = MovePieceEvent[Piece[:black, :pawn], Square[:d, 7], Square[:d, 5]]
+    some_other_move = MovePieceEvent[Piece[:white, :bishop], Square[:c, 1], Square[:e, 3]]
+    move_history = Immutable::List[black_double_push, some_other_move]
     query = GameQuery.new(
       Position.start.with(
         board: board,
@@ -85,8 +85,8 @@ RSpec.describe EnPassantEventHandler do
       ),
       move_history
     )
-    event = EnPassantEvent[Square[:e, 5], Square[:d, 6]]
-    handler = EnPassantEventHandler.new(query, event, [])
+    event = EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]]
+    handler = EnPassantEventHandler.new(query, event)
     expect(handler.process).to be_a_failed_handler_result
   end
 
@@ -99,8 +99,8 @@ RSpec.describe EnPassantEventHandler do
       ),
       move_history
     )
-    event = EnPassantEvent[Square[:e, 5], Square[:d, 6]]
-    handler = EnPassantEventHandler.new(query, event, [])
+    event = EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]]
+    handler = EnPassantEventHandler.new(query, event)
     expect(handler.process).to be_a_failed_handler_result
   end
 
@@ -114,8 +114,95 @@ RSpec.describe EnPassantEventHandler do
       ),
       move_history
     )
-    event = EnPassantEvent[Square[:e, 5], Square[:d, 6]]
-    handler = EnPassantEventHandler.new(query, event, [])
+    event = EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]]
+    handler = EnPassantEventHandler.new(query, event)
     expect(handler.process).to be_a_failed_handler_result
+  end
+
+  describe 'malformed events' do
+    it 'rejects for an incorrect color' do
+      event = EnPassantEvent[:black, Square[:e, 5], Square[:d, 6]]
+      handler = EnPassantEventHandler.new(query, event)
+      expect(handler.process).to be_a_failed_handler_result
+    end
+
+    it 'rejects for a valid but incorrect `from` square' do
+      event = EnPassantEvent[nil, Square[:e, 4], Square[:d, 6]]
+      handler = EnPassantEventHandler.new(query, event)
+      expect(handler.process).to be_a_failed_handler_result
+    end
+
+    it 'rejects for a `from` square that is valid to en-passant from but currently has no pawn' do
+      event = EnPassantEvent[nil, Square[:c, 5], Square[:d, 6]]
+      handler = EnPassantEventHandler.new(query, event)
+      expect(handler.process).to be_a_failed_handler_result
+    end
+
+    it 'rejects for an invalid from square' do
+      event = EnPassantEvent[nil, Square[:x, 500], Square[:d, 6]]
+      handler = EnPassantEventHandler.new(query, event)
+      expect(handler.process).to be_a_failed_handler_result
+    end
+
+    it 'rejects for a valid but incorrect `to` square' do
+      event = EnPassantEvent[nil, Square[:e, 5], Square[:g, 6]]
+      handler = EnPassantEventHandler.new(query, event)
+      expect(handler.process).to be_a_failed_handler_result
+    end
+
+    it 'rejects for an invalid `to`' do
+      event = EnPassantEvent[nil, Square[:e, 5], 5]
+      handler = EnPassantEventHandler.new(query, event)
+      expect(handler.process).to be_a_failed_handler_result
+    end
+
+    it 'rejects when disambiguation fails (`from` not supplied)' do
+      board = query.position.board.move(Square[:c, 2], Square[:c, 5])
+      new_query = GameQuery.new(query.position.with(board: board), move_history)
+      event = EnPassantEvent[nil, Square[nil, 5], Square[:d, 6]]
+      handler = EnPassantEventHandler.new(new_query, event)
+      expect(handler.process).to be_a_failed_handler_result
+    end
+  end
+
+  describe 'incomplete but valid events' do
+    it 'accepts when no color given' do
+      event = EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]]
+      handler = EnPassantEventHandler.new(query, event)
+      expect(handler.process).to be_a_successful_handler_result
+    end
+
+    it 'accepts when no `from` square given and there is no ambiguity' do
+      event = EnPassantEvent[:white, nil, Square[:d, 6]]
+      handler = EnPassantEventHandler.new(query, event)
+      expect(handler.process).to be_a_successful_handler_result
+    end
+
+    it 'accepts when `from` square gives just enough to solve ambiguity' do
+      new_board = board.move(Square[:c, 2], Square[:c, 5])
+      new_query = GameQuery.new(query.position.with(board: new_board), move_history)
+      event = EnPassantEvent[nil, Square[:c, nil], Square[:d, 6]]
+      handler = EnPassantEventHandler.new(new_query, event)
+      expect(handler.process).to be_a_successful_handler_result
+    end
+
+    it 'accepts when `from` square is missing rank' do
+      event = EnPassantEvent[nil, Square[:e, nil], Square[:d, 6]]
+      handler = EnPassantEventHandler.new(query, event)
+      expect(handler.process).to be_a_successful_handler_result
+    end
+
+    it 'accepts when `from` square is missing file' do
+      event = EnPassantEvent[nil, Square[nil, 5], Square[:d, 6]]
+      handler = EnPassantEventHandler.new(query, event)
+      expect(handler.process).to be_a_successful_handler_result
+    end
+
+    it 'resolves to the correct capture and piece positions' do
+      event = EnPassantEvent[nil, nil, Square[:d, 6]]
+      handler = EnPassantEventHandler.new(query, event)
+      result = handler.process
+      expect(result.event).to eq(EnPassantEvent[:white, Square[:e, 5], Square[:d, 6]])
+    end
   end
 end

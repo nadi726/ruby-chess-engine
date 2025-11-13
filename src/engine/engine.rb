@@ -3,9 +3,10 @@
 # Core components
 require_relative 'game_state/game_state'
 require_relative 'event_handlers/init'
+require_relative 'parsers/base_parser'
 require_relative 'parsers/identity_parser'
 
-# The Engine is the central coordinator and interpreter of the chess game.
+# The `Engine` is the central coordinator and interpreter of the chess game.
 #
 # It interprets structured input (chess notation) and translates it into concrete
 # state transitions, producing `GameUpdate` objects and notifying registered listeners.
@@ -32,6 +33,8 @@ class Engine # rubocop:disable Metrics/ClassLength
   DEFAULT_PARSER = IdentityParser.new.freeze
 
   def initialize(parser = nil)
+    raise ArgumentError, "Not a valid `Parser`: #{parser}" unless parser.nil? || parser.is_a?(BaseParser)
+
     @parser = parser || DEFAULT_PARSER
     @listeners = []
   end
@@ -48,7 +51,7 @@ class Engine # rubocop:disable Metrics/ClassLength
       state: GameState.new,
       endgame_status: nil, # nil for an ongoing game, `GameOutcome` for a concluded game
       offered_draw: nil, # color of whoever currently offers a draw, or nil if no draw is being offered
-      events: nil, # the last sequence of events that was applied
+      event: nil, # the last event that was applied
       session: @session.nil? ? SessionInfo.started(0) : @session.next # the current session
     )
   end
@@ -62,13 +65,13 @@ class Engine # rubocop:disable Metrics/ClassLength
   end
 
   # The last update that was made.
-  # Useful for directly retrieving the most recent GameUpdate,
+  # Useful for directly retrieving the most recent `GameUpdate`,
   # allowing inspection of game state changes without engaging with the listener model.
   attr_reader :last_update
 
   # Plays one side’s turn.
   #
-  # Parses the given notation, interprets the corresponding events,
+  # Parses the given notation, interprets the corresponding event,
   # updates the engine’s state, and notifies listeners with a `GameUpdate`.
   #
   # Returns a corresponding `GameUpdate`.
@@ -124,39 +127,38 @@ class Engine # rubocop:disable Metrics/ClassLength
     failure = detect_general_failure
     return failure unless failure.nil?
 
-    events = parse_notation(notation)
-    return GameUpdate.failure(:invalid_notation) unless events
+    event = parse_notation(notation)
+    return GameUpdate.failure(:invalid_notation) unless event
 
-    interpret_events(events)
+    interpret_event(event)
   rescue InvariantViolationError => e
     raise InternalEngineError, "The engine encountered a problem: #{e}"
   end
 
-  # Parses notation into a sequence of abstract chess events.
+  # Parses notation into an abstract chess event.
   #
-  # The resulting event sequence is not necessarily valid in game context,
-  # only syntactically valid. Returns nil if parsing fails.
+  # The resulting event is not necessarily valid in game context,
+  # only syntactically valid. Returns `nil` if parsing fails.
   def parse_notation(notation)
     @parser.parse(notation, @state.query)
   end
 
-  # Executes a given event sequence.
+  # Executes a given event.
   #
   # On success:
-  # - Applies events to the current `GameState`
+  # - Applies event to the current `GameState`
   # - Returns a `GameUpdate.success` with updated fields
   #
   # On failure:
-  # - Returns a `GameUpdate.failure(:invalid_event_sequence)`
-  def interpret_events(events) # rubocop:disable Metrics/MethodLength
-    primary_event, *extras = events
-    event_handler = event_handler_for(primary_event, extras, @state.query)
+  # - Returns a `GameUpdate.failure(:invalid_event)`
+  def interpret_event(event) # rubocop:disable Metrics/MethodLength
+    event_handler = event_handler_for(event, @state.query)
     result = event_handler.process
-    return GameUpdate.failure(:invalid_event_sequence) if result.failure?
+    return GameUpdate.failure(:invalid_event) if result.failure?
 
-    state = @state.apply_events(result.events)
+    state = @state.apply_event(result.event)
     GameUpdate.success(
-      events: result.events,
+      event: result.event,
       state: state,
       endgame_status: detect_endgame_status(state.query),
       # Clear draw offer if the opponent just moved without accepting
@@ -169,13 +171,13 @@ class Engine # rubocop:disable Metrics/ClassLength
   # - updates the specified subset of instance variables related to current game session
   # - notifies listeners of the update and returns it
   def update_game(state: :not_provided, endgame_status: :not_provided, offered_draw: :not_provided,
-                  session: :not_provided, events: :not_provided)
+                  session: :not_provided, event: :not_provided)
     @state = state unless state == :not_provided
     @endgame_status = endgame_status unless endgame_status == :not_provided
     @offered_draw = offered_draw unless offered_draw == :not_provided
     @session = session unless session == :not_provided
-    @events = events unless events == :not_provided
-    @last_update = GameUpdate.success(events: @events, state: @state, endgame_status: @endgame_status,
+    @event = event unless event == :not_provided
+    @last_update = GameUpdate.success(event: @event, state: @state, endgame_status: @endgame_status,
                                       offered_draw: @offered_draw, session: @session)
     notify_listeners(@last_update)
     @last_update
@@ -233,7 +235,7 @@ end
 # Represents the outcome of a change in the state of the game, like playing a turn or accepting a draw.
 #
 # On success, it contains:
-# - The event sequence that describes what happened.
+# - The event that describes what happened.
 # - The full `GameState` and `GameQuery` for inspection.
 # - The current endgame status (if any).
 # - The current draw offer status.
@@ -241,7 +243,7 @@ end
 #
 # On failure, containts only `error`, which is one of:
 # - `:invalid_notation`
-# - `:invalid_event_sequence`
+# - `:invalid_event`
 # - `:game_already_ended`
 # - `:no_ongoing_session`
 # - `:draw_offer_not_allowed`
@@ -253,12 +255,12 @@ end
 #
 # Typically, clients should rely on the event sequence and status fields;
 # direct access to `GameQuery` is for specialized use cases.
-GameUpdate = Data.define(:events, :state, :endgame_status, :offered_draw, :session, :error) do
+GameUpdate = Data.define(:event, :state, :endgame_status, :offered_draw, :session, :error) do
   def success? = error.nil?
   def failure? = !success?
 
-  def self.success(events:, state:, endgame_status:, offered_draw:, session:)
-    new(events.freeze, state, endgame_status, offered_draw, session, nil)
+  def self.success(event:, state:, endgame_status:, offered_draw:, session:)
+    new(event, state, endgame_status, offered_draw, session, nil)
   end
 
   def self.failure(error)

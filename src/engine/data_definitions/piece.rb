@@ -5,12 +5,13 @@ require_relative 'piece_types'
 require_relative 'colors'
 
 # Represents a single chess piece.
+#
+# An invalid `Piece` can be created but must not be used, as this will cause an error.
+# Ensure validity with `#valid?` before usage.
 class Piece
   attr_reader :color, :type
 
   def initialize(color, type)
-    raise ArgumentError, 'Not a valid piece' unless COLORS.include?(color) && PIECE_TYPES.include?(type)
-
     @color = color
     @type = type
   end
@@ -26,6 +27,10 @@ class Piece
   # This is used for threat detection like check or pins.
   def threatened_squares(board, square)
     each_potential_move(board, square, is_attacking: true)
+  end
+
+  def valid?
+    COLORS.include?(color) && PIECE_TYPES.include?(type)
   end
 
   private
@@ -75,21 +80,21 @@ class Piece
     current_square = square
 
     loop do
-      new_move = current_square.offset(*delta)
-      break unless new_move.valid?
+      new_square = current_square.offset(*delta)
+      break unless new_square.valid?
 
-      blocker = board.get(new_move)
+      blocker = board.get(new_square)
 
       if blocker
-        yield new_move if is_attacking
+        yield new_square if is_attacking
         break
       else
-        yield new_move
+        yield new_square
       end
 
       break unless movement[:repeat]
 
-      current_square = new_move
+      current_square = new_square
     end
   end
 
@@ -112,15 +117,21 @@ class Piece
 
   public
 
+  PIECE_MAP = {
+    king: 'K',
+    queen: 'Q',
+    rook: 'R',
+    bishop: 'B',
+    knight: 'N',
+    pawn: 'P'
+  }.freeze
+
   def to_s
-    case type
-    when :king then 'K'
-    when :queen then 'Q'
-    when :rook then 'R'
-    when :bishop then 'B'
-    when :knight then 'N'
-    when :pawn then 'P'
-    end + (color == :white ? '' : 'b')
+    return "#<Piece (INVALID) color=#{color.inspect} type=#{type.inspect}>" unless valid?
+
+    symbol = PIECE_MAP[type]
+    # If the piece is black, convert the symbol to lowercase
+    color == :black ? symbol.downcase : symbol
   end
 
   # For cleaner test messages
@@ -128,7 +139,7 @@ class Piece
     to_s
   end
 
-  # For making Piece a value object
+  # For making `Piece` a value object
   def ==(other)
     other.is_a?(Piece) && color == other.color && type == other.type
   end
@@ -141,7 +152,7 @@ class Piece
     [color, type].hash
   end
 
-  # For Piece[color, type] syntax.
+  # For `Piece[color, type]` syntax.
   # Makes it clearer that this is a value object, similar to Data
   def self.[](color, type)
     new(color, type)

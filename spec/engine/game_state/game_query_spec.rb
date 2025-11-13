@@ -19,29 +19,29 @@ RSpec.describe GameQuery do
 
   describe '#in_check?' do
     context 'with no check' do
-      it 'returns nil on game start' do
+      it 'returns false on game start' do
         state = GameState.start
         expect(state.query).not_to be_in_check
       end
 
-      it 'returns nil after move events sequence' do
+      it 'returns false after move events sequence' do
         event_history = [
-          MovePieceEvent[Square[:g, 1], Square[:f, 3], Piece[:white, :knight]],
-          MovePieceEvent[Square[:h, 7], Square[:h, 6], Piece[:black, :pawn]],
-          MovePieceEvent[Square[:e, 2], Square[:e, 3], Piece[:white, :pawn]],
-          MovePieceEvent[Square[:b, 7], Square[:b, 5], Piece[:black, :pawn]],
-          MovePieceEvent[Square[:f, 1], Square[:e, 2], Piece[:white, :bishop]]
+          MovePieceEvent[Piece[:white, :knight], Square[:g, 1], Square[:f, 3]],
+          MovePieceEvent[Piece[:black, :pawn], Square[:h, 7], Square[:h, 6]],
+          MovePieceEvent[Piece[:white, :pawn], Square[:e, 2], Square[:e, 3]],
+          MovePieceEvent[Piece[:black, :pawn], Square[:b, 7], Square[:b, 5]],
+          MovePieceEvent[Piece[:white, :bishop], Square[:f, 1], Square[:e, 2]]
         ]
 
         state = event_history.reduce(GameState.new(position:
         Position.start.with(castling_rights: CastlingRights.none))) do |state, event|
-          state.apply_events([event])
+          state.apply_event(event)
         end
 
         expect(state.query).not_to be_in_check
       end
 
-      it 'returns nil if en passant is available but does not expose king to check' do
+      it 'returns false if en passant is available but does not expose king to check' do
         # White pawn on e5, black pawn just moved d7->d5 (en passant possible)
         board = fill_board(
           [
@@ -59,7 +59,7 @@ RSpec.describe GameQuery do
         expect(state.query).not_to be_in_check
       end
 
-      it 'returns nil on minimal setup' do
+      it 'returns false on minimal setup' do
         board = fill_board(
           [
             [Piece[:white, :pawn], Square[:e, 4]],
@@ -76,7 +76,7 @@ RSpec.describe GameQuery do
     end
 
     context 'with simple checks' do
-      it 'returns :white for check by black queen' do
+      it 'returns true for check by black queen' do
         board = fill_board(
           [
             [Piece[:black, :queen], Square[:e, 8]],
@@ -90,7 +90,7 @@ RSpec.describe GameQuery do
         expect(state.query).to be_in_check(:white)
       end
 
-      it 'returns :white for check by black pawn' do
+      it 'returns true for check by black pawn' do
         board = fill_board(
           [
             [Piece[:black, :pawn], Square[:f, 2]],
@@ -104,7 +104,7 @@ RSpec.describe GameQuery do
         expect(state.query).to be_in_check(:white)
       end
 
-      it 'returns :black for check by white knight' do
+      it 'returns true for check by white knight' do
         board = fill_board(
           [
             [Piece[:white, :knight], Square[:e, 6]],
@@ -120,7 +120,7 @@ RSpec.describe GameQuery do
     end
 
     context 'with blocks' do
-      it 'returns nil for black queen blocked by white piece' do
+      it 'returns false for black queen blocked by white piece' do
         board = fill_board(
           [
             [Piece[:black, :queen], Square[:e, 8]],
@@ -135,7 +135,7 @@ RSpec.describe GameQuery do
         expect(state.query).not_to be_in_check
       end
 
-      it 'returns nil for black rook blocked by black piece' do
+      it 'returns false for black rook blocked by black piece' do
         board = fill_board(
           [
             [Piece[:black, :rook], Square[:e, 8]],
@@ -149,7 +149,7 @@ RSpec.describe GameQuery do
         expect(state.query).not_to be_in_check
       end
 
-      it 'returns nil for white bishop blocked' do
+      it 'returns false for white bishop blocked' do
         board = fill_board(
           [
             [Piece[:white, :bishop], Square[:b, 6]],
@@ -166,7 +166,7 @@ RSpec.describe GameQuery do
     end
 
     context 'with double check' do
-      it 'returns :white when king is attacked by rook and bishop simultaneously' do
+      it 'returns true when king is attacked by rook and bishop simultaneously' do
         board = fill_board(
           [
             [Piece[:black, :rook], Square[:e, 8]],
@@ -183,7 +183,7 @@ RSpec.describe GameQuery do
     end
 
     context 'with discovered check' do
-      it 'returns :white when moving a blocking piece reveals a rook attack' do
+      it 'returns true when moving a blocking piece reveals a rook attack' do
         # Start with rook blocked
         board = fill_board(
           [
@@ -197,9 +197,9 @@ RSpec.describe GameQuery do
         state = GameState.new(position: position)
 
         # Move the blocking pawn away
-        event = MovePieceEvent[Square[:e, 4], Square[:d, 5], Piece[:white, :bishop]]
-        filler_event = MovePieceEvent[Square[:e, 8], Square[:e, 7], Piece[:black, :rook]]
-        new_state = state.apply_events([event]).apply_events([filler_event])
+        event = MovePieceEvent[Piece[:white, :bishop], Square[:e, 4], Square[:d, 5]]
+        filler_event = MovePieceEvent[Piece[:black, :rook], Square[:e, 8], Square[:e, 7]]
+        new_state = state.apply_event(event).apply_event(filler_event)
 
         expect(new_state.query).to be_in_check(:white)
       end
@@ -221,18 +221,18 @@ RSpec.describe GameQuery do
       expect(query).not_to be_in_checkmate
     end
 
-    it "Detects checkmate based on move sequence(fool's mate)" do
+    it "Detects checkmate based on move sequence (fool's mate)" do
       event_history = [
-        MovePieceEvent[Square[:f, 2], Square[:f, 3], Piece[:white, :pawn]],
-        MovePieceEvent[Square[:e, 7], Square[:e, 6], Piece[:black, :pawn]],
-        MovePieceEvent[Square[:g, 2], Square[:g, 4], Piece[:white, :pawn]],
-        MovePieceEvent[Square[:d, 8], Square[:h, 4], Piece[:black, :queen]]
+        MovePieceEvent[Piece[:white, :pawn], Square[:f, 2], Square[:f, 3]],
+        MovePieceEvent[Piece[:black, :pawn], Square[:e, 7], Square[:e, 6]],
+        MovePieceEvent[Piece[:white, :pawn], Square[:g, 2], Square[:g, 4]],
+        MovePieceEvent[Piece[:black, :queen], Square[:d, 8], Square[:h, 4]]
       ]
 
       state = event_history.reduce(GameState.new(
                                      position: Position.start.with(castling_rights: CastlingRights.none)
                                    )) do |state, event|
-        state.apply_events([event])
+        state.apply_event(event)
       end
 
       expect(state.query).to be_in_checkmate
@@ -396,10 +396,8 @@ RSpec.describe GameQuery do
           [Piece[:white, :pawn], Square[:b, 7]]
         ]
 
-        position = Position.start.with(board: board, castling_rights: CastlingRights[
-    CastlingSide[true, false],
-    CastlingSide.none
-    ])
+        position = Position.start.with(board: board, castling_rights:
+                                       CastlingRights[CastlingSide[true, false], CastlingSide.none])
         query = GameQuery.new(position)
 
         expect(query).not_to be_in_checkmate
@@ -414,9 +412,9 @@ RSpec.describe GameQuery do
         position = Position.start.with(board: board, current_color: :white, castling_rights: CastlingRights.none)
         query = GameQuery.new(position)
 
-        state_after_promo = query.state.apply_events(
-          [MovePieceEvent[Square[:g, 7], Square[:g, 8], Piece[:white, :pawn]],
-           PromotePieceEvent[:queen]]
+        state_after_promo = query.state.apply_event(
+          MovePieceEvent[Piece[:white, :pawn], Square[:g, 7], Square[:g, 8]]
+          .promote(:queen)
         )
 
         expect(state_after_promo.query).to be_in_checkmate
@@ -727,7 +725,7 @@ RSpec.describe GameQuery do
       expect(query).not_to be_threefold_repetition
     end
 
-    it 'returns false for the for a previous position being repeated 3 or more times' do
+    it 'returns false for the previous position being repeated 3 or more times' do
       position_signatures = Immutable::Hash[position.signature => 5, Position.start.signature => 1]
       current_position = Position.start.with(board: fill_board(
         [

@@ -12,11 +12,9 @@ HANDLER_MAP = {
 }.freeze
 
 # Factory function for creating an event handler instance.
-def event_handler_for(primary, extras, query)
-  handler_class = HANDLER_MAP[primary.class]
-  raise InvalidEventSequenceError, "#{primary.class} is not an ActionEvent" unless handler_class
-  raise InvalidEventSequenceError, "#{extras} is not a sequence of GameEvent objects" unless
-                                    extras&.all? { it.is_a?(GameEvent) }
+def event_handler_for(event, query)
+  handler_class = HANDLER_MAP[event.class]
+  raise InvalidEventError, "#{event.class} is not a GameEvent" unless handler_class
 
-  handler_class.new(query, primary, extras)
+  handler_class.new(query, event)
 end

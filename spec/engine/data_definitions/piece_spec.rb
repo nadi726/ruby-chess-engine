@@ -119,12 +119,6 @@ describe Piece do
     end
 
     context 'with non-empty board' do
-      let(:state) { double('GameState') }
-
-      before do
-        allow(state).to receive(:piece_at)
-      end
-
       context 'with no blocking pieces' do
         it 'pawn can move both 1 and 2 steps from starting position' do
           black_pawn = Piece[:black, :pawn]
@@ -206,13 +200,7 @@ describe Piece do
       end
     end
 
-    context 'with state' do
-      let(:state) { double('GameState') }
-
-      before do
-        allow(state).to receive(:piece_at).and_return(nil)
-      end
-
+    context 'with non-empty board' do
       it 'bishop can attack enemy piece but not friendly piece' do
         bishop = Piece[:white, :bishop]
         board = fill_board_by_square(parse_squares('g5'), parse_squares('a3'))

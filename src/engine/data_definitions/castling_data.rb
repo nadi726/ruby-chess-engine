@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'immutable'
+require_relative 'square'
 
 # Movement squares for castling pieces, based on the color and side
 module CastlingData

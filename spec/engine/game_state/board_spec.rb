@@ -6,25 +6,9 @@ require 'data_definitions/piece'
 require 'errors'
 
 RSpec.describe Board do
-  let(:pieces) do
-    [
-      # Rank 1
-      Piece[:white, :rook], Piece[:white, :knight], Piece[:white, :bishop], Piece[:white, :queen],
-      Piece[:white, :king], Piece[:white, :bishop], Piece[:white, :knight], Piece[:white, :rook],
-      # Rank 2
-      *Array.new(8) { Piece[:white, :pawn] },
-      # Ranks 3-6 (empty)
-      *Array.new(32),
-      # Rank 7
-      *Array.new(8) { Piece[:black, :pawn] },
-      # Rank 8
-      Piece[:black, :rook], Piece[:black, :knight], Piece[:black, :bishop], Piece[:black, :queen],
-      Piece[:black, :king], Piece[:black, :bishop], Piece[:black, :knight], Piece[:black, :rook]
-    ]
-  end
-
-  subject(:board) { described_class.from_flat_array(pieces) }
-  let(:empty_board) { described_class.from_flat_array(Array.new(64)) }
+  subject(:empty_board) { described_class.from_flat_array(Array.new(64)) }
+  subject(:board) { described_class.start }
+  let(:pieces) { board.find_pieces }
 
   describe '#get' do
     context 'for valid squares' do
@@ -77,11 +61,6 @@ RSpec.describe Board do
         new_board = empty_board.insert(piece, Square[:e, 4])
         expect { new_board.insert(Piece[:white, :rook], Square[:e, 4]) }.to raise_error(BoardManipulationError)
       end
-
-      it 'rejects an object that does not respond to :type and :color' do
-        dummy = Object.new
-        expect { empty_board.insert(dummy, Square[:e, 4]) }.to raise_error(ArgumentError)
-      end
     end
 
     context 'for valid piece and square in an empty board' do
@@ -95,7 +74,7 @@ RSpec.describe Board do
       it 'does not affect the rest of the board' do
         new_board = empty_board.insert(piece, Square[:f, 4])
         samples = parse_squares('a1 c8 e2 f5')
-        values = samples.map { |pos| new_board.get(pos) }
+        values = samples.map { |sq| new_board.get(sq) }
         expect(values).to all(be_nil)
       end
 
@@ -115,23 +94,20 @@ RSpec.describe Board do
       it 'does not affect surrounding pieces' do
         new_board = board.insert(piece, Square[:c, 6])
         squares = parse_squares('b7 c7 d7 b6 d6 b5 c5 d5')
-        old_values = squares.map { |pos| board.get(pos) }
-        new_values = squares.map { |pos| new_board.get(pos) }
+        old_values = squares.map { |sq| board.get(sq) }
+        new_values = squares.map { |sq| new_board.get(sq) }
         expect(old_values).to eq(new_values)
       end
 
       it 'works correctly for multiple inserts' do
-        board2 = board.insert(piece, Square[:c, 3])
-        board3 = board2.insert(Piece[:white, :bishop], Square[:h, 4])
-        board4 = board3.insert(Piece[:black, :pawn], Square[:g, 6])
+        inserted = [
+          [piece, Square[:c, 3]],
+          [Piece[:white, :bishop], Square[:h, 4]],
+          [Piece[:black, :pawn], Square[:g, 6]]
+        ]
+        final_board = inserted.reduce(board) { |new_board, i| new_board.insert(*i) }
 
-        inserted = {
-          Square[:c, 3] => piece,
-          Square[:h, 4] => Piece[:white, :bishop],
-          Square[:g, 6] => Piece[:black, :pawn]
-        }
-
-        expect(inserted.all? { |pos, piece| board4.get(pos) == piece }).to be(true)
+        expect(inserted.all? { |piece, sq| final_board.get(sq) == piece }).to be(true)
       end
     end
   end
@@ -235,7 +211,7 @@ RSpec.describe Board do
       it 'removes pieces at occupied squares when used consecutively' do
         squares = [Square[:a, 2], Square[:g, 7], Square[:d, 8]]
         result_board = board.remove(squares[0]).remove(squares[1]).remove(squares[2])
-        results = squares.map { |pos| result_board.get(pos) }
+        results = squares.map { |sq| result_board.get(sq) }
         expect(results).to all(be_nil)
       end
     end
@@ -310,7 +286,7 @@ RSpec.describe Board do
       end
     end
 
-    it 'find_pieces returns same pieces as pieces_with_squares.map(&:first)' do
+    it '`#find_pieces` returns same pieces as `#pieces_with_squares.map(&:first)`' do
       result = board.find_pieces(type: :pawn, color: :black)
       squares_result = board.pieces_with_squares(type: :pawn, color: :black).map(&:first)
       expect(result).to match_array(squares_result)
@@ -324,18 +300,18 @@ RSpec.describe Board do
         Piece[:white, :bishop]
       ]
 
-      board_with_pieces = squares.zip(pieces_to_insert).reduce(empty_board) do |b, (pos, piece)|
-        b.insert(piece, pos)
+      board_with_pieces = squares.zip(pieces_to_insert).reduce(empty_board) do |b, (sq, piece)|
+        b.insert(piece, sq)
       end
 
-      cleaned_board = squares.reduce(board_with_pieces) { |b, pos| b.remove(pos) }
+      cleaned_board = squares.reduce(board_with_pieces) { |b, sq| b.remove(sq) }
 
-      squares.each do |pos|
-        expect(cleaned_board.get(pos)).to be_nil
+      squares.each do |sq|
+        expect(cleaned_board.get(sq)).to be_nil
       end
     end
 
-    it 'pieces_with_squares and find_pieces return same count' do
+    it '`#pieces_with_squares` and `#find_pieces` return same count' do
       expect(board.pieces_with_squares.count).to eq(board.find_pieces.count)
     end
   end

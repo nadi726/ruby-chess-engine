@@ -161,6 +161,35 @@ describe Square do
     end
   end
 
+  describe '#matches?' do
+    context 'correct matches' do
+      matching_squares = [Square[nil, nil], Square[:h, nil], Square[nil, 8], Square[:h, 8]]
+
+      matching_squares.each do |subsquare|
+        it "Matches #{subsquare.inspect} against h8" do
+          expect(subsquare.matches?(h8)).to eq(true)
+        end
+      end
+    end
+
+    context 'incorrect matches' do
+      it 'differs for two full different squares' do
+        expect(h8.matches?(a1)).to eq(false)
+      end
+      it 'differs for same file, different rank' do
+        expect(h8.matches?(Square[:h, 2])).to eq(false)
+      end
+
+      it 'differs for same rank, different file' do
+        expect(h8.matches?(Square[:g, 8])).to eq(false)
+      end
+
+      it 'full square does not match a subsquare' do
+        expect(a1.matches?(Square[:a, nil])).to eq(false)
+      end
+    end
+  end
+
   describe '#valid?' do
     context 'valid squares' do
       it 'returns true for a1' do
@@ -179,33 +208,33 @@ describe Square do
 
     context 'invalid squares' do
       it 'returns false for non-string file' do
-        pos = Square[4, 3]
-        expect(pos).not_to be_valid
+        sq = Square[4, 3]
+        expect(sq).not_to be_valid
       end
 
       it 'returns false for non-letter file' do
-        pos = Square['$', 3]
-        expect(pos).not_to be_valid
+        sq = Square['$', 3]
+        expect(sq).not_to be_valid
       end
 
       it 'returns false for too-high letter file' do
-        pos = Square[:i, 3]
-        expect(pos).not_to be_valid
+        sq = Square[:i, 3]
+        expect(sq).not_to be_valid
       end
 
       it 'returns false for rank 0' do
-        pos = Square[:f, 0]
-        expect(pos).not_to be_valid
+        sq = Square[:f, 0]
+        expect(sq).not_to be_valid
       end
 
       it 'returns false for negative rank' do
-        pos = Square[:f, -3]
-        expect(pos).not_to be_valid
+        sq = Square[:f, -3]
+        expect(sq).not_to be_valid
       end
 
       it 'returns false for rank > 8' do
-        pos = Square[:f, 9]
-        expect(pos).not_to be_valid
+        sq = Square[:f, 9]
+        expect(sq).not_to be_valid
       end
     end
   end

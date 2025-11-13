@@ -16,11 +16,11 @@ require 'immutable'
 #
 # Responsibilities:
 # - Answer queries about the current position (through the `GameQuery` object).
-# - Produce the next GameState by applying a list of valid events (`#apply_events`).
+# - Produce the next `GameState` by applying a valid event (`#apply_event`).
 #
 # Internal structure:
 # - position: A `Position` object representing the current game position
-# - move_history: An immutable list of event-lists. Each inner list represents the events that made up a single turn.
+# - move_history: An immutable list of events, in the order they were applied.
 # - position_signatures: An immutable hash counting position signatures, used for detecting repetition.
 # - query: A `GameQuery` object that provides a high-level interface for interrogating the state.
 #
@@ -41,85 +41,77 @@ class GameState
     @query = GameQuery.new(@position, @move_history, @position_signatures)
   end
 
-  # Process a sequence of events to produce the next GameState
-  # Assumes the event sequence is valid.
-  def apply_events(events)
-    raise ArgumentError unless events.is_a?(Enumerable) && events.all? { it.is_a?(GameEvent) }
+  # Process an event to produce the next `GameState`
+  # Assumes the event is valid and complete.
+  def apply_event(event)
+    raise ArgumentError unless event.is_a?(GameEvent)
 
-    events = Immutable.from events
     signature_count = @position_signatures.fetch(@position.signature, 0)
     signatures = @position_signatures.put(@position.signature, signature_count + 1)
 
     GameState.new(
-      position: advance_position(events),
-      move_history: @move_history.add(events),
+      position: advance_position(event),
+      move_history: @move_history.add(event),
       position_signatures: signatures
     )
   end
 
   private
 
-  def advance_position(events)
+  def advance_position(event)
     Position.new(
-      board: advance_board(@position.board, events),
+      board: advance_board(@position.board, event),
       current_color: @position.other_color,
-      en_passant_target: compute_en_passant(events),
-      castling_rights: compute_castling_rights(@position.castling_rights, @position.current_color, events),
-      halfmove_clock: compute_halfmove_clock(@position.halfmove_clock, events)
+      en_passant_target: compute_en_passant(event),
+      castling_rights: compute_castling_rights(@position.castling_rights, @position.current_color, event),
+      halfmove_clock: compute_halfmove_clock(@position.halfmove_clock, event)
     )
-  rescue InvalidEventSequenceError; raise
+  rescue InvalidEventError; raise
   rescue InvariantViolationError => e
-    raise InvalidEventSequenceError,
-          "Invariant violation during event application: #{e.class} - #{e.message}\nSequence: #{events.to_a.inspect}"
+    raise InvalidEventError,
+          "Invariant violation during event application: #{e.class} - #{e.message}\nEvent: #{event}"
   end
 
-  def advance_board(board, events) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
-    case main_event(events)
-    in MovePieceEvent => e
-      advance_with_move_piece_event(board, events, e)
+  def advance_board(board, event)
+    case event
+    in MovePieceEvent
+      advance_with_move_piece_event(board, event)
     in EnPassantEvent => e
-      board.remove(e.captured_square).move(e.from, e.to)
+      board.remove(e.captured.square).move(e.from, e.to)
     in CastlingEvent => e
       board.move(e.king_from, e.king_to).move(e.rook_from, e.rook_to)
-    in nil
-      raise InvalidEventSequenceError, "No ActionEvent found in event sequence: #{events.to_a.inspect}"
     else
-      raise InvalidEventSequenceError, "Unhandled event type: #{events.first.class}"
+      raise InvalidEventError, "Unhandled event type: #{event.class}"
     end
   end
 
-  def advance_with_move_piece_event(board, events, move_event)
-    from, to, piece = move_event.deconstruct
-    promote = events.grep(PromotePieceEvent).first
-    final_piece = promote ? Piece.new(piece.color, promote.piece_type) : piece
+  def advance_with_move_piece_event(board, event)
+    final_piece = event.promote_to ? Piece.new(event.piece.color, event.promote_to) : event.piece
 
-    removals = events.grep(RemovePieceEvent)
-    board = removals.reduce(board) { |b, e| b.remove(e.square) }
-
-    board.remove(from).insert(final_piece, to)
+    # capture if applicable
+    board = board.remove(event.captured.square) if event.captured
+    # move the piece
+    board.remove(event.from).insert(final_piece, event.to)
   end
 
-  def compute_en_passant(events)
+  def compute_en_passant(event)
     # Get the last move and ensure it was a pawn moving two steps forward
-    move = events.find do |move|
-      move.is_a?(MovePieceEvent) && move.piece.type == :pawn &&
-        move.from.distance(move.to) == [0, 2]
-    end
-    return unless move
+    return unless event.is_a?(MovePieceEvent) && event.piece.type == :pawn &&
+                  event.from.distance(event.to) == [0, 2]
 
     # Return the square passed over
-    pos = Square[move.from.file, (move.from.rank + move.to.rank) / 2]
-    raise InvariantViolationError, "Invalid en passant target: #{pos}" unless pos.valid?
+    sq = Square[event.from.file, (event.from.rank + event.to.rank) / 2]
+    raise InvariantViolationError, "Invalid en passant target: #{sq}" unless sq.valid?
 
-    pos
+    sq
   end
 
-  def compute_castling_rights(previous_rights, color, events)
+  def compute_castling_rights(previous_rights, color, event)
     sides = previous_rights.get_side color
     kingside_rook_pos  = CastlingData.rook_from(color, :kingside)
     queenside_rook_pos = CastlingData.rook_from(color, :queenside)
 
-    sides = case main_event(events)
+    sides = case event
             in MovePieceEvent => e
               if e.piece.type == :king
                 sides.with(kingside: false, queenside: false)
@@ -138,17 +130,10 @@ class GameState
     previous_rights.with(color => sides)
   end
 
-  def compute_halfmove_clock(clock, events)
-    reset_clock = events.any? do |e|
-      (e.is_a?(MovePieceEvent) && e.piece.type == :pawn) ||
-        e.is_a?(RemovePieceEvent) ||
-        e.is_a?(EnPassantEvent)
-    end
+  def compute_halfmove_clock(clock, event)
+    reset_clock = (event.is_a?(MovePieceEvent) && (event.piece.type == :pawn || event.captured)) ||
+                  event.is_a?(EnPassantEvent)
 
     reset_clock ? 0 : clock + 1
-  end
-
-  def main_event(events)
-    events.grep(ActionEvent).first
   end
 end

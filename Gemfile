@@ -12,3 +12,5 @@ gem 'ice_nine', '~> 0.11.2'
 gem 'debug' # , require: false
 
 gem 'immutable-ruby', '~> 0.2.0'
+
+gem 'wholeable', '~> 1.4'

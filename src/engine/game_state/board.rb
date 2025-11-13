@@ -5,10 +5,10 @@ require_relative '../data_definitions/square'
 require_relative '../data_definitions/piece'
 require_relative '../errors'
 
-# Board is an immutable chessboard representation.
+# `Board` is an immutable chessboard representation.
 # Each square is mapped to either a piece or nil, using `Square` objects for coordinates.
-# Provides query methods (e.g., #get, #pieces_with_squares) to inspect board state,
-# and manipulation methods that return new Board instances with the desired changes.
+# Provides query methods (e.g., `#get`, `#pieces_with_squares`) to inspect board state,
+# and manipulation methods that return new `Board` instances with the desired changes.
 # Designed for safe, functional-style updates and efficient state sharing.
 class Board
   SIZE = 8 # the board dimensions
@@ -16,7 +16,7 @@ class Board
   # Constructs a `Board` from a flat array of 64 items.
   # Each item's index maps to a board square as follows:
   # 0 -> a1, 2 -> b1, ... 8 -> a2, ... 63 -> h8
-  # Each item should be a Piece or nil, representing the contents of that square.
+  # Each item should be a `Piece` or nil, representing the contents of that square.
   def self.from_flat_array(values)
     raise ArgumentError, 'Expected 64 elements' unless values.size == SIZE * SIZE
     raise ArgumentError, 'Expected nil or Piece objects' unless values.all? { it.nil? || it.is_a?(Piece) }
@@ -73,7 +73,7 @@ class Board
   end
 
   # Returns an array of all pieces matching the criteria.
-  # Internally delegates to #pieces_with_squares, stripping the squares.
+  # Internally delegates to `#pieces_with_squares`, stripping the squares.
   def find_pieces(color: nil, type: nil)
     pieces_with_squares(color: color, type: type).map(&:first)
   end
@@ -108,23 +108,25 @@ class Board
   end
 
   # For debugging mainly
-  def to_s # rubocop:disable Metrics/MethodLength
+  def to_s # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
     rows = []
-    rows << '  a b c d e f g h'
+    rows << '   a b c d e f g h'
+    rows << ' ┌─────────────────┐'
     (0...SIZE).each do |row|
-      row_str = "#{row + 1} "
+      row_str = "#{row + 1}│ "
       (0...SIZE).each do |col|
         index = square_to_index(Square.from_index(row, col))
         piece = @array.get(index)
         row_str += if piece
                      "#{piece} "
                    else
-                     '. '
+                     (row + col).odd? ? '□ ' : '■ '
                    end
       end
-      rows << row_str.chomp
+      rows << "#{row_str.chomp}│#{row + 1}"
     end
-    rows << '  a b c d e f g h'
+    rows << ' └─────────────────┘'
+    rows << '   a b c d e f g h'
     rows.join("\n")
   end
 
@@ -141,15 +143,15 @@ class Board
   end
 
   def hash
-    # Doesn't use the exact same hash as #pieces_with_squares to avoid clashes
+    # Doesn't use the exact same hash as `#pieces_with_squares` to avoid clashes
     [pieces_with_squares, 0].hash
   end
 
   private
 
   def square_to_index(square)
-    raise ArgumentError unless square.is_a?(Square)
-    raise InvalidSquareError unless square.valid?
+    raise ArgumentError, "#{square.inspect} is not a Square" unless square.is_a?(Square)
+    raise InvalidSquareError, "#{square.inspect} is not a valid square" unless square.valid?
 
     row, col = square.to_a
     (row * SIZE) + col
