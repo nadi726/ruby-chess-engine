@@ -39,123 +39,123 @@ RSpec.describe MoveEventHandler do
   context 'simple moves' do
     it 'returns valid result for 1-rank pawn move' do
       event = MovePieceEvent[nil, Square[:d, 2], Square[:d, 3]]
-      handler = MoveEventHandler.new(start_query, event)
-      expect(handler.process).to be_a_successful_handler_result
+      result = MoveEventHandler.call(start_query, event)
+      expect(result).to be_a_successful_handler_result
     end
 
     it 'returns valid result for 2-rank pawn move' do
       event = MovePieceEvent[nil, Square[:f, 2], Square[:f, 4]]
-      handler = MoveEventHandler.new(start_query, event)
-      expect(handler.process).to be_a_successful_handler_result
+      result = MoveEventHandler.call(start_query, event)
+      expect(result).to be_a_successful_handler_result
     end
 
     it 'returns invalid result for 3-rank pawn move' do
       event = MovePieceEvent[nil, Square[:g, 2], Square[:f, 5]]
-      handler = MoveEventHandler.new(start_query, event)
-      expect(handler.process).to be_a_failed_handler_result
+      result = MoveEventHandler.call(start_query, event)
+      expect(result).to be_a_failed_handler_result
     end
 
     it 'returns valid result for valid knight move' do
       event = MovePieceEvent[Piece[:white, :knight], Square[:b, 1], Square[:c, 3]]
-      handler = MoveEventHandler.new(start_query, event)
-      expect(handler.process).to be_a_successful_handler_result
+      result = MoveEventHandler.call(start_query, event)
+      expect(result).to be_a_successful_handler_result
     end
   end
 
   context 'for complex state' do
     it 'allows white rook to move to a5' do
       event = MovePieceEvent[Piece[:white, :rook], Square[:a, 1], Square[:a, 5]]
-      handler = MoveEventHandler.new(white_query, event)
-      expect(handler.process).to be_a_successful_handler_result
+      result = MoveEventHandler.call(white_query, event)
+      expect(result).to be_a_successful_handler_result
     end
 
     it 'prevents white pawn from moving to c6 (blocked by black pawn)' do
       event = MovePieceEvent[nil, Square[:d, 5], Square[:c, 6]]
-      handler = MoveEventHandler.new(white_query, event)
-      expect(handler.process).to be_a_failed_handler_result
+      result = MoveEventHandler.call(white_query, event)
+      expect(result).to be_a_failed_handler_result
     end
 
     it 'allows white knight to jump to c3' do
       event = MovePieceEvent[Piece[nil, :knight], Square[:b, 1], Square[:c, 3]]
-      handler = MoveEventHandler.new(white_query, event)
-      expect(handler.process).to be_a_successful_handler_result
+      result = MoveEventHandler.call(white_query, event)
+      expect(result).to be_a_successful_handler_result
     end
 
     it 'prevents white rook from moving through white knight' do
       event = MovePieceEvent[Piece[nil, :rook], Square[:a, 1], Square[:c, 1]]
-      handler = MoveEventHandler.new(white_query, event)
-      expect(handler.process).to be_a_failed_handler_result
+      result = MoveEventHandler.call(white_query, event)
+      expect(result).to be_a_failed_handler_result
     end
 
     it 'allows black queen to capture white pawn on d5 with empty #capture' do
       event = MovePieceEvent[Piece[nil, :queen], Square[:d, 8], Square[:d, 5]].capture
-      handler = MoveEventHandler.new(black_query, event)
-      expect(handler.process).to be_a_successful_handler_result
+      result = MoveEventHandler.call(black_query, event)
+      expect(result).to be_a_successful_handler_result
     end
     it 'allows black queen to capture white pawn on d5 with full #capture' do
       move = MovePieceEvent[Piece[:black, :queen], Square[:d, 8], Square[:d, 5]]
              .capture(Square[:d, 5], Piece[:white, :pawn])
-      handler = MoveEventHandler.new(black_query, move)
-      expect(handler.process).to be_a_successful_handler_result
+      result = MoveEventHandler.call(black_query, move)
+      expect(result).to be_a_successful_handler_result
     end
 
     it 'fails when capturing but no capture is given' do
       event = MovePieceEvent[Piece[nil, :queen], Square[:d, 8], Square[:d, 5]]
-      handler = MoveEventHandler.new(black_query, event)
-      expect(handler.process).to be_a_failed_handler_result
+      result = MoveEventHandler.call(black_query, event)
+      expect(result).to be_a_failed_handler_result
     end
 
     it 'prevents black bishop from moving to a1 (blocked by white rook)' do
       event = MovePieceEvent[Piece[:black, :bishop], Square[:h, 8], Square[:a, 1]]
-      handler = MoveEventHandler.new(black_query, event)
-      expect(handler.process).to be_a_failed_handler_result
+      result = MoveEventHandler.call(black_query, event)
+      expect(result).to be_a_failed_handler_result
     end
 
     it 'fails when capture square does not match the target square' do
       move = MovePieceEvent[Piece[:black, :queen], Square[:d, 8], Square[:d, 5]]
              .capture(Square[:c, 6], Piece[:white, :pawn])
-      handler = MoveEventHandler.new(black_query, move)
-      expect(handler.process).to be_a_failed_handler_result
+      result = MoveEventHandler.call(black_query, move)
+      expect(result).to be_a_failed_handler_result
     end
 
     it 'fails when captured piece is not actually at given square' do
       move = MovePieceEvent[Piece[:black, :queen], Square[:d, 8], Square[:d, 5]]
              .capture(Square[:d, 5], Piece[:white, :knight])
-      handler = MoveEventHandler.new(black_query, move)
-      expect(handler.process).to be_a_failed_handler_result
+      result = MoveEventHandler.call(black_query, move)
+      expect(result).to be_a_failed_handler_result
     end
 
     it 'fails when moving from an empty square' do
       event = MovePieceEvent[nil, Square[:c, 4], Square[:d, 5]]
-      handler = MoveEventHandler.new(white_query, event)
-      expect(handler.process).to be_a_failed_handler_result
+      result = MoveEventHandler.call(white_query, event)
+      expect(result).to be_a_failed_handler_result
     end
 
     it 'fails when trying to move onto allied piece even with capture' do
       move = MovePieceEvent[Piece[:white, :rook], Square[:a, 1], Square[:b, 1]]
              .capture(Square[:b, 1], Piece[:white, :knight])
-      handler = MoveEventHandler.new(white_query, move)
-      expect(handler.process).to be_a_failed_handler_result
+      result = MoveEventHandler.call(white_query, move)
+      expect(result).to be_a_failed_handler_result
     end
 
     it 'fails if captured is given but no piece is being captured' do
       move = MovePieceEvent[Piece[:white, :rook], Square[:a, 1], Square[:a, 4]]
              .capture(Square[:a, 4], nil)
-      handler = MoveEventHandler.new(white_query, move)
-      expect(handler.process).to be_a_failed_handler_result
+      result = MoveEventHandler.call(white_query, move)
+      expect(result).to be_a_failed_handler_result
     end
 
     context 'turn enforcement' do
       it 'prevents black from moving when it is white’s turn' do
         event = MovePieceEvent[nil, Square[:c, 6], Square[:c, 5]]
-        handler = MoveEventHandler.new(white_query, event)
-        expect(handler.process).to be_a_failed_handler_result
+        result = MoveEventHandler.call(white_query, event)
+        expect(result).to be_a_failed_handler_result
       end
 
       it 'allows black to move on black’s turn' do
         event = MovePieceEvent[Piece[:black, :king], Square[:e, 8], Square[:f, 8]]
-        handler = MoveEventHandler.new(black_query, event)
-        expect(handler.process).to be_a_successful_handler_result
+        result = MoveEventHandler.call(black_query, event)
+        expect(result).to be_a_successful_handler_result
       end
     end
   end
@@ -188,13 +188,13 @@ RSpec.describe MoveEventHandler do
 
     it 'rejects en passant without required events' do
       move_event = MovePieceEvent[nil, Square[:e, 5], Square[:d, 6]]
-      handler = MoveEventHandler.new(query, move_event)
-      expect(handler.process).to be_a_failed_handler_result
+      result = MoveEventHandler.call(query, move_event)
+      expect(result).to be_a_failed_handler_result
     end
 
     it 'accepts en passant with required events from move event' do
       move_event = MovePieceEvent[nil, Square[:e, 5], Square[:d, 6]].capture
-      result = MoveEventHandler.new(query, move_event).process
+      result = MoveEventHandler.call(query, move_event)
       expect(result).to be_a_successful_handler_result
       expect(result.event).to eq(EnPassantEvent[:white, Square[:e, 5], Square[:d, 6]])
     end
@@ -211,8 +211,8 @@ RSpec.describe MoveEventHandler do
       )
       query = GameQuery.new(Position.start.with(board: board))
       move_event = MovePieceEvent[Piece[:white, :king], Square[:e, 1], Square[:f, 1]]
-      handler = MoveEventHandler.new(query, move_event)
-      expect(handler.process).to be_a_successful_handler_result
+      result = MoveEventHandler.call(query, move_event)
+      expect(result).to be_a_successful_handler_result
     end
 
     it 'fails when moving into check' do
@@ -226,8 +226,8 @@ RSpec.describe MoveEventHandler do
       )
       query = GameQuery.new(Position.start.with(board: board))
       move_event = MovePieceEvent[Piece[:white, :rook], Square[:e, 4], Square[:b, 4]]
-      handler = MoveEventHandler.new(query, move_event)
-      expect(handler.process).to be_a_failed_handler_result
+      result = MoveEventHandler.call(query, move_event)
+      expect(result).to be_a_failed_handler_result
     end
 
     it "fails when the king is currently in check and doesn't moves out of it" do
@@ -240,9 +240,9 @@ RSpec.describe MoveEventHandler do
       )
       query = GameQuery.new(Position.start.with(board: board))
       move_event = MovePieceEvent[Piece[:white, :king], Square[:e, 1], Square[:e, 2]]
-      handler = MoveEventHandler.new(query, move_event)
+      result = MoveEventHandler.call(query, move_event)
 
-      expect(handler.process).to be_a_failed_handler_result
+      expect(result).to be_a_failed_handler_result
     end
   end
 
@@ -255,15 +255,15 @@ RSpec.describe MoveEventHandler do
       matcher = fail ? be_a_failed_handler_result : be_a_successful_handler_result
       vals.each do |val|
         event = event.with(field => val)
-        handler = MoveEventHandler.new(query, event)
-        expect(handler.process).to matcher
+        result = MoveEventHandler.call(query, event)
+        expect(result).to matcher
       end
     end
 
     it 'rejects when not given a `MovePieceEvent`' do
-      expect(MoveEventHandler.new(start_query, EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]])
-                            .process).to be_a_failed_handler_result
-      expect(MoveEventHandler.new(start_query, nil).process).to be_a_failed_handler_result
+      expect(MoveEventHandler.call(start_query, EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]])
+                            ).to be_a_failed_handler_result
+      expect(MoveEventHandler.call(start_query, nil)).to be_a_failed_handler_result
     end
 
     it 'rejects when `to` is not a valid square' do
@@ -301,24 +301,23 @@ RSpec.describe MoveEventHandler do
     context 'promotion' do
       it 'rejects when `promote_to` is given for a `to` square that is not eligible' do
         event = MovePieceEvent[Piece[:white, :pawn], Square[:d, 5], Square[:d, 6]].promote(:queen)
-        expect(MoveEventHandler.new(white_query, event).process).to be_a_failed_handler_result
+        expect(MoveEventHandler.call(white_query, event)).to be_a_failed_handler_result
       end
 
       it 'rejects when promotion is given to a non-pawn piece' do
         event = MovePieceEvent[Piece[:white, :rook], Square[:a, 1], Square[:a, 8]].promote(:queen)
-        expect(MoveEventHandler.new(white_query, event).process).to be_a_failed_handler_result
+        expect(MoveEventHandler.call(white_query, event)).to be_a_failed_handler_result
       end
 
       it 'rejects when promotion is to an invalid piece type' do
         base_event = MovePieceEvent[Piece[:black, :pawn], Square[:h, 2], Square[:h, 1]]
-        expect(MoveEventHandler.new(black_query, base_event.promote(:goat)).process).to be_a_failed_handler_result
-        expect(MoveEventHandler.new(black_query, base_event.promote(:king)).process).to be_a_failed_handler_result
+        expect(MoveEventHandler.call(black_query, base_event.promote(:goat))).to be_a_failed_handler_result
+        expect(MoveEventHandler.call(black_query, base_event.promote(:king))).to be_a_failed_handler_result
       end
 
-      # NOT IMPLEMENTED YET
-      xit 'rejects when promotion should have been given' do
+      it 'rejects when promotion should have been given' do
         base_event = MovePieceEvent[Piece[:black, :pawn], Square[:h, 2], Square[:h, 1]]
-        expect(MoveEventHandler.new(black_query, base_event).process).to be_a_failed_handler_result
+        expect(MoveEventHandler.call(black_query, base_event)).to be_a_failed_handler_result
       end
     end
   end
@@ -327,21 +326,21 @@ RSpec.describe MoveEventHandler do
     let(:base_event) { MovePieceEvent[Piece[:white, :pawn], Square[:g, 2], Square[:g, 4]] }
 
     it 'resolves to pawn when piece not given' do
-      handler = MoveEventHandler.new(start_query, base_event.with(piece: nil))
-      expect(handler.process.event&.piece).to eq(Piece[:white, :pawn])
+      result = MoveEventHandler.call(start_query, base_event.with(piece: nil))
+      expect(result.event&.piece).to eq(Piece[:white, :pawn])
     end
 
     it 'resolves piece color when type is given' do
       event = MovePieceEvent[Piece[nil, :knight], nil, Square[:a, 3]]
-      handler = MoveEventHandler.new(start_query, event)
-      expect(handler.process.event&.piece).to eq(Piece[:white, :knight])
+      result = MoveEventHandler.call(start_query, event)
+      expect(result.event&.piece).to eq(Piece[:white, :knight])
     end
 
     it 'resolves `from` when nil or partial' do
       [nil, Square[nil, nil], Square[:g, nil], Square[nil, 2]].each do |from|
         event = base_event.with(from: from)
-        handler = MoveEventHandler.new(start_query, event)
-        expect(handler.process.event&.from).to eq(Square[:g, 2])
+        result = MoveEventHandler.call(start_query, event)
+        expect(result.event&.from).to eq(Square[:g, 2])
       end
     end
 
@@ -350,7 +349,7 @@ RSpec.describe MoveEventHandler do
       base_event = MovePieceEvent[Piece[:white, :rook], nil, Square[:a, 3]]
       [Square[nil, 1], Square[nil, 7], Square[:a, 1]].each do |from|
         event = base_event.with(from: from)
-        result = MoveEventHandler.new(white_query, event).process
+        result = MoveEventHandler.call(white_query, event)
         expect(result).to be_a_successful_handler_result
       end
     end
@@ -360,15 +359,15 @@ RSpec.describe MoveEventHandler do
       [[nil, nil], [nil, Piece[:black, nil]], [nil, Piece[:black, :pawn]], [Square[nil, nil], Piece[nil, nil]],
        [Square[nil, 6], nil], [Square[:c, 6], Piece[nil, :pawn]]].each do |sq, p|
         event = base_event.capture(sq, p)
-        result = MoveEventHandler.new(white_query, event).process
+        result = MoveEventHandler.call(white_query, event)
         expect(result).to be_a_successful_handler_result
         expect(result.event.captured).to eq(CaptureData[Square[:c, 6], Piece[:black, :pawn]])
       end
     end
 
-    xit 'accepts legal promotion' do
+    it 'accepts legal promotion' do
       base_event = MovePieceEvent[Piece[:black, :pawn], Square[:h, 2], Square[:h, 1]].promote(:queen)
-      result = MoveEventHandler.new(black_query, base_event).process
+      result = MoveEventHandler.call(black_query, base_event)
       expect(result).to be_a_successful_handler_result
       expect(result.event.promote_to).to eq(:queen)
     end

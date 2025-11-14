@@ -8,8 +8,11 @@ require_relative 'event_result'
 # Each handler validates an event against the current game state.
 # It either produces a fully resolved event (suitable for application to the `GameState`), or returns an error.
 #
-# The main entry point is `#process`, and it is shared accross all subclasses.
-# For specific event handling functionality, subclasses must implement `#resolve`.
+# Handlers are implemented as classes for convenience (shared helpers, instance context),
+# but their public API is procedural:
+# `.call(query, event)` runs the handler and returns an `EventResult`.
+#
+# Subclasses must implement `#resolve`.
 class EventHandler
   attr_reader :query, :event
 
@@ -19,8 +22,14 @@ class EventHandler
   end
 
   # Primary entry point.
+
+  def self.call(query, event)
+    new(query, event).call
+  end
+
   # Validates and completes the event, returning an `EventResult`.
-  def process
+  # Clients should use the class-level `.call` instead.
+  def call
     result = resolve
     return result if result.failure?
 
@@ -39,9 +48,9 @@ class EventHandler
   # Common post-processing logic, applied to all valid results.
   # (e.g., flagging check or checkmate events, enforcing turn-based constraints, etc.)
   def post_process(event)
-    return invalid_result if next_turn_in_check?(event)
+    return failure if next_turn_in_check?(event)
 
-    EventResult.success(event) # Placeholder
+    success(event) # Placeholder
   end
 
   def next_turn_in_check?(event)
@@ -60,7 +69,7 @@ class EventHandler
   # `stop_conditions`: a hash where each key is a step and the value is a condition lambda.
   def run_resolution_pipeline(*steps, **stop_conditions)
     default_condition = lambda(&:success?)
-    result = EventResult.success(event)
+    result = success(event)
     steps.each do |step|
       result = send(step, result.event)
       condition = stop_conditions.fetch(step, default_condition)
@@ -69,7 +78,11 @@ class EventHandler
     result
   end
 
-  def invalid_result(msg = '')
+  def success(event)
+    EventResult.success(event)
+  end
+
+  def failure(msg = '')
     msg = "Message: #{msg}" unless msg.empty?
     EventResult.failure("Invalid result for #{event.inspect}. #{msg}")
   end

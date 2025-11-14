@@ -9,7 +9,7 @@ class MoveEventHandler < EventHandler
   private
 
   def resolve
-    return invalid_result("Not a MovePieceEvent: #{event.class}") unless event.is_a?(MovePieceEvent)
+    return failure("#{event} is not a MovePieceEvent") unless event.is_a?(MovePieceEvent)
 
     resolving_methods = %i[resolve_to resolve_piece handle_en_passant
                            resolve_from resolve_captured resolve_promote_to]
@@ -20,34 +20,34 @@ class MoveEventHandler < EventHandler
   # Has to have a full, valid :to
   def resolve_to(event)
     to = event.to
-    return invalid_result(":to is not a valid Square: #{to}") unless to.is_a?(Square) && to.valid?
+    return failure(":to is not a valid Square: #{to}") unless to.is_a?(Square) && to.valid?
 
     piece_at_to = board.get(to)
     if piece_at_to&.color == current_color || piece_at_to&.type == :king || (event.captured.nil? && !piece_at_to.nil?)
-      return invalid_result("Cannot move to #{to}")
+      return failure("Cannot move to #{to}")
     end
 
-    EventResult.success(event)
+    success(event)
   end
 
   def resolve_piece(event)
-    return invalid_result(":piece is not a Piece: #{event.piece}") unless event.piece.is_a?(Piece) || event.piece.nil?
-    return invalid_result("Wrong color: #{event.piece.color}") unless [nil, current_color].include?(event.piece&.color)
+    return failure(":piece is not a Piece: #{event.piece}") unless event.piece.is_a?(Piece) || event.piece.nil?
+    return failure("Wrong color: #{event.piece.color}") unless [nil, current_color].include?(event.piece&.color)
 
     piece_color = current_color
     piece_type = event.piece&.type || :pawn # Default to pawn if no piece specified
 
     # Validate piece type
     unless PIECE_TYPES.include?(piece_type)
-      return invalid_result("Invalid piece type: #{piece_type}. Must be one of: #{PIECE_TYPES.join(', ')}")
+      return failure("Invalid piece type: #{piece_type}. Must be one of: #{PIECE_TYPES.join(', ')}")
     end
 
     piece = Piece[piece_color, piece_type]
-    EventResult.success(event.with(piece: piece))
+    success(event.with(piece: piece))
   end
 
   def resolve_from(event)
-    return invalid_result(":from is not a `Square`: #{event.from}") unless event.from.is_a?(Square) || event.from.nil?
+    return failure(":from is not a `Square`: #{event.from}") unless event.from.is_a?(Square) || event.from.nil?
 
     # Determine the appropriate method to get piece moves,
     # either `Piece#moves` or `Piece#threatened_squares`
@@ -62,72 +62,68 @@ class MoveEventHandler < EventHandler
       piece_moves.any? { event.to == it }
     end
 
-    return invalid_result('Invalid piece at :from') if filtered_pieces.empty?
+    return failure('Invalid piece at :from') if filtered_pieces.empty?
     if filtered_pieces.size > 1
-      return invalid_result(":from square disambiguation faild: too many pieces: #{filtered_pieces.inspect}")
+      return failure(":from square disambiguation faild: too many pieces: #{filtered_pieces.inspect}")
     end
 
     _p, from = filtered_pieces.first
     unless event.from.nil? || event.from.matches?(from)
-      return invalid_result("Invalid :from square given: #{event.from}. Should be: #{from}")
+      return failure("Invalid :from square given: #{event.from}. Should be: #{from}")
     end
 
-    EventResult.success(event.with(from: from))
+    success(event.with(from: from))
   end
 
   # Delegate to `EnPassantEventHandler` as needed
   def handle_en_passant(event)
-    return EventResult.success(event) unless should_en_passant?(event)
+    return success(event) unless should_en_passant?(event)
 
-    EnPassantEventHandler.new(@query, EnPassantEvent[event.piece.color, event.from, event.to]).process
+    EnPassantEventHandler.call(@query, EnPassantEvent[event.piece.color, event.from, event.to])
   end
 
   def resolve_captured(event)
     captured = event.captured
-    return EventResult.success(event) if captured.nil?
+    return success(event) if captured.nil?
 
-    return invalid_result(":captured is of type #{captured.class}, not CaptureData") unless captured.is_a?(CaptureData)
+    return failure(":captured is of type #{captured.class}, not CaptureData") unless captured.is_a?(CaptureData)
     unless captured.square.nil? || captured.square.is_a?(Square)
-      return invalid_result(":captured.square is not a Square: #{captured.square}")
+      return failure(":captured.square is not a Square: #{captured.square}")
     end
     unless captured.piece.nil? || captured.piece.is_a?(Piece)
-      return invalid_result(":captured.piece is not a Piece: #{captured.piece}")
+      return failure(":captured.piece is not a Piece: #{captured.piece}")
     end
-    return invalid_result('Invalid captured square') unless captured.square.nil? || captured.square.matches?(event.to)
+    return failure('Invalid captured square') unless captured.square.nil? || captured.square.matches?(event.to)
 
     captured_square = event.to
     captured_piece = board.get(event.to)
 
     unless [nil, @query.position.other_color].include?(captured.piece&.color) &&
            [nil, captured_piece&.type].include?(captured.piece&.type)
-      return invalid_result("Invalid captured piece: #{captured.piece}, should be #{captured_piece}")
+      return failure("Invalid captured piece: #{captured.piece}, should be #{captured_piece}")
     end
-    return invalid_result("No piece to capture at #{captured_square}") if captured_piece.nil?
+    return failure("No piece to capture at #{captured_square}") if captured_piece.nil?
 
-    EventResult.success(event.with(captured: CaptureData[captured_square, captured_piece]))
+    success(event.with(captured: CaptureData[captured_square, captured_piece]))
   end
 
+  PROMOTION_TYPES = %i[queen knight rook bishop].freeze
+  private_constant :PROMOTION_TYPES
   def resolve_promote_to(event)
-    return EventResult.success(event) if event.piece.type != :pawn && event.promote_to.nil?
-    return invalid_result(":promote_to proivded for a non pawn #{event.piece}") unless event.piece.type == :pawn
-
+    promote_to = event.promote_to
     unless should_promote?(event)
-      result = if event.promote_to.nil?
-                 return EventResult.success(event)
-               else
-                 invalid_result("Cannot promote pawn at #{event.to}")
-               end
-      return result
+      return success(event) if promote_to.nil?
+
+      return failure("Given promotion, but cannot promote #{event.piece.type} at #{event.to}")
     end
 
-    return invalid_result("Pawn move to #{event.to} requires promotion") if event.promote_to.nil?
+    return failure("Pawn move to #{event.to} requires promotion") if promote_to.nil?
 
-    promotion_types = %i[queen knight rook bishop]
-    unless promotion_types.include?(event.promote_to)
-      return invalid_result("Invalid promotion piece type: #{event.promote_to}. Needs to be one of: #{promotion_types}")
+    unless PROMOTION_TYPES.include?(promote_to)
+      return failure("Invalid promotion piece type: #{promote_to}. Needs to be one of: #{PROMOTION_TYPES.join(', ')}")
     end
 
-    EventResult.success(event)
+    success(event)
   end
 
   def should_en_passant?(event)
@@ -136,7 +132,8 @@ class MoveEventHandler < EventHandler
       board.get(event.to).nil?
   end
 
-  def should_promote?(*)
-    false # TODO
+  def should_promote?(event)
+    event.piece.type == :pawn &&
+      ((current_color == :white && event.to.rank == 8) || (current_color == :black && event.to.rank == 1))
   end
 end

@@ -151,9 +151,8 @@ class Engine # rubocop:disable Metrics/ClassLength
   #
   # On failure:
   # - Returns a `GameUpdate.failure(:invalid_event)`
-  def interpret_event(event) # rubocop:disable Metrics/MethodLength
-    event_handler = event_handler_for(event, @state.query)
-    result = event_handler.process
+  def interpret_event(event)
+    result = handle_event(event, @state.query)
     return GameUpdate.failure(:invalid_event) if result.failure?
 
     state = @state.apply_event(result.event)

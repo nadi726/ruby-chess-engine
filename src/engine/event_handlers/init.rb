@@ -11,10 +11,11 @@ HANDLER_MAP = {
   CastlingEvent => EventHandler # TODO
 }.freeze
 
-# Factory function for creating an event handler instance.
-def event_handler_for(event, query)
-  handler_class = HANDLER_MAP[event.class]
-  raise InvalidEventError, "#{event.class} is not a GameEvent" unless handler_class
+# Get the appropriate event handler and process the event
+def handle_event(event, query)
+  handler_class = HANDLER_MAP.fetch(event.class) do
+    raise InvalidEventError, "no handler for #{event}"
+  end
 
-  handler_class.new(query, event)
+  handler_class.call(query, event)
 end
