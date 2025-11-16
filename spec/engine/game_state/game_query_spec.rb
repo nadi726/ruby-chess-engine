@@ -13,7 +13,7 @@ RSpec.describe GameQuery do
     # TODO
   end
 
-  describe '#piece_attacked?' do
+  describe '#square_attacked?' do
     # TODO
   end
 
@@ -703,6 +703,7 @@ RSpec.describe GameQuery do
       query = GameQuery.new(position, [], position_signatures)
       expect(query).to be_threefold_repetition
     end
+
     it 'returns false for the current position being repeated less than 3 times' do
       position_signatures = Immutable::Hash[position.signature => 2, Position.start.signature => 1]
       query = GameQuery.new(position, [], position_signatures)
@@ -710,7 +711,7 @@ RSpec.describe GameQuery do
     end
 
     it 'returns false for the previous position being repeated 3 or more times' do
-      position_signatures = Immutable::Hash[position.signature => 5, Position.start.signature => 1]
+      position_signatures = Immutable::Hash[position.signature => 4, Position.start.signature => 1]
       current_position = Position.start.with(board: fill_board(
         [
           [Piece[:white, :king], Square[:e, 1]],

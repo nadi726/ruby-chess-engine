@@ -195,14 +195,14 @@ class Engine # rubocop:disable Metrics/ClassLength
   # Returns a `GameOutcome` object if the game has ended, otherwise returns nil
   def detect_endgame_status(query)
     return GameOutcome[query.position.other_color, :checkmate] if query.in_checkmate?
-    return nil unless query.must_draw?
 
-    cause =
-      if query.stalemate? then :stalemate
-      elsif query.insufficient_material? then :insufficient_material
-      else
-        :fivefold_repetition # TODO
-      end
+    cause = if query.stalemate? then :stalemate
+            elsif query.insufficient_material? then :insufficient_material
+            elsif query.fivefold_repetition? then :fivefold_repetition
+            end
+
+    return nil if cause.nil?
+
     GameOutcome[:draw, cause]
   end
 
