@@ -55,7 +55,7 @@ class EventHandler
 
   def next_turn_in_check?(event)
     new_query = query.state.apply_event(event).query
-    new_query.in_check?(query.position.current_color)
+    new_query.in_check?(position.current_color)
   end
 
   ### Helpers for subclasses
@@ -89,5 +89,7 @@ class EventHandler
 
   # Useful accessors
   def board = @query.board
-  def current_color = query.position.current_color
+  def position = query.position
+  def current_color = position.current_color
+  def other_color = position.other_color
 end

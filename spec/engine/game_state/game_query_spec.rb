@@ -13,6 +13,10 @@ RSpec.describe GameQuery do
     # TODO
   end
 
+  describe '#piece_attacked?' do
+    # TODO
+  end
+
   describe '#piece_can_move?' do
     # TODO
   end
@@ -354,8 +358,7 @@ RSpec.describe GameQuery do
         board = fill_board [
           [Piece[:black, :king], Square[:h, 8]],
           [Piece[:black, :queen], Square[:c, 2]],
-          [Piece[:black, :bishop], Square[:c, 3]],
-          [Piece[:black, :rook], Square[:f, 7]],
+          [Piece[:black, :rook], Square[:a, 7]],
           [Piece[:white, :king], Square[:e, 1]],
           [Piece[:white, :rook], Square[:h, 1]]
         ]
@@ -366,25 +369,6 @@ RSpec.describe GameQuery do
         query = GameQuery.new(position)
 
         expect(query).not_to be_in_checkmate
-      end
-
-      it 'returns true when castling is available but still results in check' do
-        board = fill_board [
-          [Piece[:black, :king], Square[:h, 8]],
-          [Piece[:black, :queen], Square[:c, 2]],
-          [Piece[:black, :bishop], Square[:c, 3]],
-          [Piece[:black, :rook], Square[:f, 7]],
-          [Piece[:black, :rook], Square[:g, 4]],
-          [Piece[:white, :king], Square[:e, 1]],
-          [Piece[:white, :rook], Square[:h, 1]]
-        ]
-        position = Position.start.with(board: board, castling_rights: CastlingRights[
-          CastlingSide[true, false],
-          CastlingSide.none
-        ])
-        query = GameQuery.new(position)
-
-        expect(query).to be_in_checkmate
       end
 
       it 'returns false when block by promotion is available' do

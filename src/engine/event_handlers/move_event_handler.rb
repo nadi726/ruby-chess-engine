@@ -98,7 +98,7 @@ class MoveEventHandler < EventHandler
     captured_square = event.to
     captured_piece = board.get(event.to)
 
-    unless [nil, @query.position.other_color].include?(captured.piece&.color) &&
+    unless [nil, other_color].include?(captured.piece&.color) &&
            [nil, captured_piece&.type].include?(captured.piece&.type)
       return failure("Invalid captured piece: #{captured.piece}, should be #{captured_piece}")
     end
@@ -127,8 +127,8 @@ class MoveEventHandler < EventHandler
   end
 
   def should_en_passant?(event)
-    @query.position.en_passant_target && (event.piece.type == :pawn) && !event.captured.nil? &&
-      event.to == @query.position.en_passant_target && event.promote_to.nil? &&
+    position.en_passant_target && (event.piece.type == :pawn) && !event.captured.nil? &&
+      event.to == position.en_passant_target && event.promote_to.nil? &&
       board.get(event.to).nil?
   end
 

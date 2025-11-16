@@ -132,7 +132,7 @@ RSpec.describe GameState do
             )
 
             expect_castling_on(
-              event: CastlingEvent[:kingside, :white],
+              event: CastlingEvent[:white, :kingside],
               initial_board: board
             )
           end
@@ -146,7 +146,7 @@ RSpec.describe GameState do
               ]
             )
             expect_castling_on(
-              event: CastlingEvent[:queenside, :white],
+              event: CastlingEvent[:white, :queenside],
               initial_board: board
             )
           end
@@ -163,7 +163,7 @@ RSpec.describe GameState do
 
             state = event_history.reduce(start_state) { |state, event| state.apply_event(event) }
             expect_castling_on(
-              event: CastlingEvent[:kingside, :white],
+              event: CastlingEvent[:white, :kingside],
               initial_board: state.query.board,
               state: state
             )
@@ -225,6 +225,7 @@ RSpec.describe GameState do
         empty_castling_rights = CastlingRights[CastlingSide.start, CastlingSide.none]
         expect(position.castling_rights).to eq empty_castling_rights
       end
+
       it 'revokes correct rook side when rook moves' do
         # Clear knight and bishop so the rook can move legally
         board = start_board
@@ -239,12 +240,26 @@ RSpec.describe GameState do
         expect(position.castling_rights.white).to eq CastlingSide[kingside: true, queenside: false]
         expect(position.castling_rights.black).to eq CastlingSide.start # unchanged
       end
+      it 'revokes castling rights of the other side when rook is captured' do
+        board = start_board
+                .remove(Square[:h, 2])
+                .remove(Square[:h, 7])
+        white_rook_move = MovePieceEvent[Piece[:white, :rook], Square[:h, 1], Square[:h, 8]]
+                          .capture(Square[:h, 8], Piece[:black, :rook])
+
+        gamestate = GameState.new(position: Position.start.with(board: board))
+        gamestate = gamestate.apply_event(white_rook_move)
+        position = gamestate.query.position
+
+        expect(position.castling_rights.black).to eq CastlingSide[kingside: false, queenside: true]
+      end
+
       it 'updates correctly after castling' do
         # Setup: clear path for white kingside castling
         board = start_board
                 .remove(Square[:f, 1])
                 .remove(Square[:g, 1])
-        castling_event = CastlingEvent[:kingside, :white]
+        castling_event = CastlingEvent[:white, :kingside]
 
         gamestate = GameState.new(position: Position.start.with(board: board))
         gamestate = gamestate.apply_event(castling_event)

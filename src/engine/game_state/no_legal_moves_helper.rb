@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require_relative '../errors'
+require_relative '../data_definitions/events'
+require_relative '../data_definitions/piece'
+require_relative '../data_definitions/castling_data'
 
 # An internal module for `GameQuery`
 # Check that there are no legal moves for the given color
@@ -31,28 +34,27 @@ module NoLegalMovesHelper
   end
 
   def each_move_only_event(piece, square, &)
-    moves = piece.moves(board, square).select { board.get(it).nil? }
+    to_squares = piece.moves(board, square).select { board.get(it).nil? }
 
-    each_move_event(piece, square, moves, &)
+    each_move_event(piece, square, to_squares, &)
   end
 
   def each_capture_event(piece, square, &)
-    capture_moves = piece.threatened_squares(board, square).select do |target_pos|
-      target_piece = board.get(target_pos)
+    capturable_squares = piece.threatened_squares(board, square).select do |target_square|
+      target_piece = board.get(target_square)
       !target_piece.nil? && piece.color != target_piece.color
     end
 
-    each_move_event(piece, square, capture_moves) do |event|
-      target_piece = event.to
-      yield event.capture(target_piece, board.get(target_piece))
+    each_move_event(piece, square, capturable_squares) do |event|
+      yield event.capture(event.to, board.get(event.to))
     end
   end
 
-  def each_move_event(piece, square, moves, &)
-    moves.each do |target_pos|
-      event = MovePieceEvent[piece, square, target_pos]
+  def each_move_event(piece, square, to_squares, &)
+    to_squares.each do |target_square|
+      event = MovePieceEvent[piece, square, target_square]
 
-      if move_should_promote?(piece, target_pos)
+      if move_should_promote?(piece, target_square)
         each_promotion_event(event, &)
       else
         yield event
@@ -78,27 +80,38 @@ module NoLegalMovesHelper
     end
   end
 
-  def each_castling_event(color) # rubocop:disable Metrics/AbcSize
-    # TODO: - enforce full castling restrictions: can't castle when there are pieces between,
-    #         or when either of the squares the king moves through are attacked
-    sides = @position.castling_rights.get_side(color)
-    valid_sides = %i[kingside queenside].select { sides.public_send(it) }
-    event = valid_sides.map { CastlingEvent[it, color] }
-                       # Filter occupied squares
-                       .select { board.get(it.king_to).nil? && board.get(it.rook_to).nil? }
-    event.each { yield it }
+  def each_castling_event(color)
+    CASTLING_SIDES.each do |side|
+      next unless castling_available?(color, side)
+
+      yield CastlingEvent[color, side]
+    end
   end
 
   def move_should_promote?(piece, target_pos)
     piece.type == :pawn &&
       ((piece.color == :white && target_pos.rank == 8) ||
-       (piece.color == :black && target_pos.rank == 1))
+      (piece.color == :black && target_pos.rank == 1))
   end
 
   def can_en_passant?(color)
     position.en_passant_target && (
-    (color == :white && position.en_passant_target.rank == 6) ||
-    (color == :black && position.en_passant_target.rank == 3)
-  )
+      (color == :white && position.en_passant_target.rank == 6) ||
+      (color == :black && position.en_passant_target.rank == 3)
+    )
+  end
+
+  def castling_available?(color, side)
+    has_rights = @position.castling_rights.sides(color).public_send(side)
+    return false unless has_rights
+
+    king_is_attacked = CastlingData.king_path(color, side).any? do |sq|
+      square_attacked?(sq, position.other_color)
+    end
+    path_is_clear = CastlingData.intermediate_squares(color, side).all? do |sq|
+      board.get(sq).nil?
+    end
+
+    !king_is_attacked && path_is_clear
   end
 end

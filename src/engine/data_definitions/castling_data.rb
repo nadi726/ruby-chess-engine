@@ -3,58 +3,57 @@
 require 'immutable'
 require_relative 'square'
 
+CASTLING_SIDES = %i[kingside queenside].freeze
+
 # Movement squares for castling pieces, based on the color and side
 module CastlingData
-  DATA = Immutable.from(
+  FILES = Immutable.from(
     {
-      %i[white kingside] => {
-        king_from: Square[:e, 1],
-        king_to: Square[:g, 1],
-        rook_from: Square[:h, 1],
-        rook_to: Square[:f, 1]
+      kingside: {
+        king_to: :g,
+        rook_from: :h,
+        rook_to: :f,
+        king_path: %i[e f g],
+        intermediate_squares: %i[f g]
       },
-      %i[white queenside] => {
-        king_from: Square[:e, 1],
-        king_to: Square[:c, 1],
-        rook_from: Square[:a, 1],
-        rook_to: Square[:d, 1]
-      },
-      %i[black kingside] => {
-        king_from: Square[:e, 8],
-        king_to: Square[:g, 8],
-        rook_from: Square[:h, 8],
-        rook_to: Square[:f, 8]
-      },
-      %i[black queenside] => {
-        king_from: Square[:e, 8],
-        king_to: Square[:c, 8],
-        rook_from: Square[:a, 8],
-        rook_to: Square[:d, 8]
+      queenside: {
+        king_to: :c,
+        rook_from: :a,
+        rook_to: :d,
+        king_path: %i[e d c],
+        intermediate_squares: %i[b c d]
       }
     }
-  )
+  ).freeze
 
-  def self.lookup(color, side)
-    DATA.fetch(Immutable.from([color, side]))
+  RANK_FOR_COLOR = { white: 1, black: 8 }.freeze
+
+  def self.rank(color)
+    RANK_FOR_COLOR.fetch(color)
   end
 
-  def self.[](color, side)
-    lookup(color, side)
-  end
-
-  def self.king_from(color, side)
-    lookup(color, side)[:king_from]
+  def self.king_from(color, _side = nil)
+    Square[:e, rank(color)]
   end
 
   def self.king_to(color, side)
-    lookup(color, side)[:king_to]
+    Square[FILES.fetch(side)[:king_to], rank(color)]
+  end
+
+  def self.king_path(color, side)
+    FILES.fetch(side)[:king_path].map { |f| Square[f, rank(color)] }
   end
 
   def self.rook_from(color, side)
-    lookup(color, side)[:rook_from]
+    Square[FILES.fetch(side)[:rook_from], rank(color)]
   end
 
   def self.rook_to(color, side)
-    lookup(color, side)[:rook_to]
+    Square[FILES.fetch(side)[:rook_to], rank(color)]
+  end
+
+  # Every square passed through either by the king or the rook, not including starting squares
+  def self.intermediate_squares(color, side)
+    FILES.fetch(side)[:intermediate_squares].map { |f| Square[f, rank(color)] }
   end
 end

@@ -3,6 +3,7 @@
 require 'immutable'
 require_relative 'game_state'
 require_relative 'no_legal_moves_helper'
+require_relative '../data_definitions/colors'
 
 # Provides derived information about the current game state.
 #
@@ -32,9 +33,17 @@ class GameQuery
   def piece_attacking?(from, target_square)
     piece = board.get(from)
     target_piece = board.get(target_square)
-    return false unless piece && target_piece && piece.color != target_piece.color
+    return false unless piece && piece.color != target_piece&.color
 
     piece.threatened_squares(board, from).include?(target_square)
+  end
+
+  # Determines whether the given square is attacked by a piece of the specified color
+  def square_attacked?(attacked_square, color = @position.other_color)
+    other_pieces_squares = @board.pieces_with_squares(color: color)
+    other_pieces_squares.any? do |_p, attacking_square|
+      piece_attacking?(attacking_square, attacked_square)
+    end
   end
 
   # Determine whether a piece at square "from" can move to "to" without capturing,
@@ -46,11 +55,8 @@ class GameQuery
 
   # returns true if the king of the specified color is in check
   def in_check?(color = @position.current_color)
-    _k, king_pos = @board.pieces_with_squares(color: color, type: :king).first
-    other_pieces_squares = @board.pieces_with_squares(color: color == :white ? :black : :white)
-    other_pieces_squares.any? do |_, piece_pos|
-      piece_attacking?(piece_pos, king_pos)
-    end
+    _k, king_square = @board.pieces_with_squares(color: color, type: :king).first
+    square_attacked?(king_square, flip_color(color))
   end
 
   # returns true if the king of the specified color is in checkmate

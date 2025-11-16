@@ -18,4 +18,4 @@ This folder contains all classes responsible for handling chess events.
 - Event-specific handlers:
   - `move_event_handler.rb`
   - `en_passant_event_handler.rb`
-  - `castling_event_handler.rb` *(placeholder – not implemented yet)*
+  - `castling_event_handler.rb`

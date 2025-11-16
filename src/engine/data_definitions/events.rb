@@ -83,14 +83,14 @@ end
 
 # Castling move.
 class CastlingEvent < GameEvent
-  include Wholeable[:side, :color]
+  include Wholeable[:color, :side]
 
-  SIDES = %i[kingside queenside].freeze
+  SIDES = CASTLING_SIDES
 
-  def initialize(side, color, **)
+  def initialize(color, side, **)
     super(**)
-    @side = side # One of: :kingside, :queenside
     @color = color
+    @side = side
   end
 
   def king_from
@@ -120,7 +120,7 @@ class CastlingEvent < GameEvent
   private
 
   def ensure_validity
-    return if SIDES.include?(side) && COLORS.include?(color)
+    return if COLORS.include?(color) && SIDES.include?(side)
 
     raise ArgumentError, "Invalid fields for CastlingEvent: #{color}, #{side}"
   end

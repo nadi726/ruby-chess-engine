@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'board'
+require_relative '../data_definitions/colors'
 
 # Tracks whether each side still retains castling rights.
 # Rights may be lost due to moving the king or rook, or other game events.
@@ -13,26 +14,35 @@ CastlingSide = Data.define(:kingside, :queenside) do
   def self.none
     new(false, false)
   end
+
+  def side?(side)
+    case side
+    when :kingside then kingside
+    when :queenside then queenside
+    else
+      raise ArgumentError, "Invalid castling side: #{side.inspect}"
+    end
+  end
 end
+
 CastlingRights = Data.define(
   :white, :black
 ) do
   def self.start
-    CastlingRights[
-      CastlingSide.start,
-      CastlingSide.start
-    ]
+    new(CastlingSide.start, CastlingSide.start)
   end
 
   def self.none
-    new(
-      CastlingSide.none,
-      CastlingSide.none
-    )
+    new(CastlingSide.none, CastlingSide.none)
   end
 
-  def get_side(color)
-    { white: white, black: black }[color]
+  def sides(color)
+    case color
+    when :white then white
+    when :black then black
+    else
+      raise ArgumentError, "Invalid color: #{color.inspect}"
+    end
   end
 end
 
@@ -68,6 +78,6 @@ Position = Data.define(
   end
 
   def other_color
-    current_color == :white ? :black : :white
+    flip_color(current_color)
   end
 end

@@ -16,8 +16,8 @@ class EnPassantEventHandler < EventHandler
   end
 
   def resolve_color(event)
-    return failure(":to is not a color: #{event.color}") unless [nil, *COLORS].include?(event.color)
-    return failure("Wrong color: #{event.piece.color}") unless [nil, current_color].include?(event.color)
+    return failure("Not a color: #{event.color}") unless [nil, *COLORS].include?(event.color)
+    return failure("Unexpected color: #{event.color} (expected #{current_color})") if event.color == other_color
 
     success(event.with(color: current_color))
   end
@@ -50,5 +50,5 @@ class EnPassantEventHandler < EventHandler
     end
   end
 
-  def en_passant_target = @query.position.en_passant_target
+  def en_passant_target = position.en_passant_target
 end

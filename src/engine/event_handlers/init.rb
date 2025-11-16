@@ -3,12 +3,13 @@
 require_relative '../data_definitions/events'
 require_relative 'move_event_handler'
 require_relative 'en_passant_event_handler'
+require_relative 'castling_event_handler'
 require_relative '../errors'
 
 HANDLER_MAP = {
   MovePieceEvent => MoveEventHandler,
   EnPassantEvent => EnPassantEventHandler,
-  CastlingEvent => EventHandler # TODO
+  CastlingEvent => CastlingEventHandler
 }.freeze
 
 # Get the appropriate event handler and process the event

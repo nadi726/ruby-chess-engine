@@ -7,6 +7,7 @@ require_relative '../data_definitions/piece'
 require_relative '../data_definitions/square'
 require_relative '../data_definitions/castling_data'
 require_relative '../data_definitions/events'
+require_relative '../data_definitions/colors'
 require 'immutable'
 
 # Represents the immutable state of the game at a specific point in time.
@@ -60,11 +61,11 @@ class GameState
 
   def advance_position(event)
     Position.new(
-      board: advance_board(@position.board, event),
+      board: advance_board(event),
       current_color: @position.other_color,
       en_passant_target: compute_en_passant(event),
-      castling_rights: compute_castling_rights(@position.castling_rights, @position.current_color, event),
-      halfmove_clock: compute_halfmove_clock(@position.halfmove_clock, event)
+      castling_rights: compute_castling_rights(event),
+      halfmove_clock: compute_halfmove_clock(event)
     )
   rescue InvalidEventError; raise
   rescue InvariantViolationError => e
@@ -72,7 +73,8 @@ class GameState
           "Invariant violation during event application: #{e.class} - #{e.message}\nEvent: #{event}"
   end
 
-  def advance_board(board, event)
+  def advance_board(event)
+    board = @position.board
     case event
     in MovePieceEvent
       advance_with_move_piece_event(board, event)
@@ -106,34 +108,59 @@ class GameState
     sq
   end
 
-  def compute_castling_rights(previous_rights, color, event)
-    sides = previous_rights.get_side color
-    kingside_rook_pos  = CastlingData.rook_from(color, :kingside)
-    queenside_rook_pos = CastlingData.rook_from(color, :queenside)
-
-    sides = case event
-            in MovePieceEvent => e
-              if e.piece.type == :king
-                sides.with(kingside: false, queenside: false)
-              elsif e.from == kingside_rook_pos
-                sides.with(kingside: false)
-              elsif e.from == queenside_rook_pos
-                sides.with(queenside: false)
-              else
-                sides
-              end
-            in CastlingEvent
-              sides.with(kingside: false, queenside: false)
-            else
-              sides
-            end
-    previous_rights.with(color => sides)
+  def compute_castling_rights(event)
+    current_color_sides = castling_sides_for_current_color(event)
+    other_color_sides = castling_sides_for_other_color(event)
+    @position.castling_rights.with(@position.current_color => current_color_sides,
+                                   @position.other_color => other_color_sides)
   end
 
-  def compute_halfmove_clock(clock, event)
+  # Helpers for computing castling rights
+  def castling_sides_for_current_color(event)
+    color = @position.current_color
+    sides = @position.castling_rights.sides color
+
+    case event
+    in MovePieceEvent => e
+      if e.piece.type == :king
+        sides.with(kingside: false, queenside: false)
+      elsif e.from == CastlingData.rook_from(color, :kingside)
+        sides.with(kingside: false)
+      elsif e.from == CastlingData.rook_from(color, :queenside)
+        sides.with(queenside: false)
+      else
+        sides
+      end
+    in CastlingEvent
+      sides.with(kingside: false, queenside: false)
+    else
+      sides
+    end
+  end
+
+  def castling_sides_for_other_color(event)
+    color = @position.other_color
+    sides = @position.castling_rights.sides color
+
+    return sides unless event.is_a?(MovePieceEvent)
+
+    captured = event.captured
+    return sides if captured.nil? || captured.piece.type != :rook
+
+    case captured.square
+    when CastlingData.rook_from(color, :kingside)
+      sides.with(kingside: false)
+    when CastlingData.rook_from(color, :queenside)
+      sides.with(queenside: false)
+    else
+      sides
+    end
+  end
+
+  def compute_halfmove_clock(event)
     reset_clock = (event.is_a?(MovePieceEvent) && (event.piece.type == :pawn || event.captured)) ||
                   event.is_a?(EnPassantEvent)
 
-    reset_clock ? 0 : clock + 1
+    reset_clock ? 0 : @position.halfmove_clock + 1
   end
 end
