@@ -4,20 +4,24 @@ require_relative '../errors'
 require_relative '../data_definitions/events'
 require_relative '../data_definitions/piece'
 require_relative '../data_definitions/castling_data'
+require_relative '../data_definitions/colors'
 
 # An internal module for `GameQuery`
-# Check that there are no legal moves for the given color
-module NoLegalMovesHelper
-  private
-
+# Generates all legal moves for the given color
+module LegalMovesHelper
   # Entry point
-  def no_legal_moves?(color)
-    each_pseudo_legal_event(color).all? do |event|
-      state.apply_event(event).query.in_check?(color)
+  def legal_moves(color)
+    return GameQuery::INVALID_ARGUMENT unless COLORS.include?(color)
+    return enum_for(__method__, color) unless block_given?
+
+    each_pseudo_legal_event(color).each do |event|
+      yield event unless state.apply_event(event).query.in_check?(color)
     rescue InvalidEventError
-      true # Malformed events are considered illegal moves
+      next # Malformed events are considered illegal moves
     end
   end
+
+  private
 
   # A pseudo-legal move is a move that is valid according to the rules of chess,
   # except that it does not account for whether the move would leave the king in check.

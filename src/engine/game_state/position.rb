@@ -6,7 +6,7 @@ require_relative '../data_definitions/colors'
 # Tracks whether each side still retains castling rights.
 # Rights may be lost due to moving the king or rook, or other game events.
 
-CastlingSide = Data.define(:kingside, :queenside) do
+CastlingSides = Data.define(:kingside, :queenside) do
   def self.start
     new(true, true)
   end
@@ -29,11 +29,11 @@ CastlingRights = Data.define(
   :white, :black
 ) do
   def self.start
-    new(CastlingSide.start, CastlingSide.start)
+    new(CastlingSides.start, CastlingSides.start)
   end
 
   def self.none
-    new(CastlingSide.none, CastlingSide.none)
+    new(CastlingSides.none, CastlingSides.none)
   end
 
   def sides(color)

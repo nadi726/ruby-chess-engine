@@ -2,22 +2,31 @@
 
 require 'immutable'
 require_relative 'game_state'
-require_relative 'no_legal_moves_helper'
+require_relative 'legal_moves_helper'
 require_relative '../data_definitions/colors'
+require_relative '../data_definitions/square'
+require_relative 'position'
 
 # Provides derived information about the current game state.
 #
 # `GameQuery` acts as the single entry point for all game-related queries.
 # It exposes methods for:
+# - **legal moves enumeration** (`legal_moves(color)`)
 # - **Check and checkmate detection** (`in_check?`, `in_checkmate?`)
 # - **draw detection** ( `must_draw?`, `in_draw?`, and detailed draw queries like `stalemate?` )
 # - **Pieces and squares relations** (`piece_attacking?`, `piece_can_move?`, `square_attacked?`)
 class GameQuery
-  include NoLegalMovesHelper
+  include LegalMovesHelper
 
+  INVALID_ARGUMENT = :invalid
   attr_reader :position, :move_history, :position_signatures, :board
 
   def initialize(position, move_history = Immutable::List[], position_signatures = Immutable::Hash[])
+    unless position.is_a?(Position) && move_history.is_a?(Enumerable) && position_signatures.respond_to?(:fetch)
+      raise ArgumentError,
+            "Invalid argument for GameQuery. At least one of: #{position}, #{move_history}, #{position_signatures}"
+    end
+
     @position = position
     @move_history = Immutable.from move_history
     @position_signatures = Immutable.from position_signatures
@@ -28,8 +37,19 @@ class GameQuery
     @state ||= GameState.new(position: position, move_history: move_history, position_signatures: position_signatures)
   end
 
+  # Determine whether a piece at square "from" can move to "to" without capturing,
+  # not taking into account other considerations like pins.
+  def piece_can_move?(from, to)
+    return INVALID_ARGUMENT unless valid_square?(from) && valid_square?(to)
+
+    piece = board.get(from)
+    board.find_pieces.include?(piece) && board.get(to).nil? && piece.moves(board, from).include?(to)
+  end
+
   # Determines if a piece at the given square is attacking a target square.
   def piece_attacking?(from, target_square)
+    return INVALID_ARGUMENT unless valid_square?(from) && valid_square?(target_square)
+
     piece = board.get(from)
     target_piece = board.get(target_square)
     return false unless piece && piece.color != target_piece&.color
@@ -39,28 +59,27 @@ class GameQuery
 
   # Determines whether the given square is attacked by a piece of the specified color
   def square_attacked?(attacked_square, color = @position.other_color)
+    return INVALID_ARGUMENT unless valid_square?(attacked_square) && COLORS.include?(color)
+
     other_pieces_squares = @board.pieces_with_squares(color: color)
     other_pieces_squares.any? do |_p, attacking_square|
       piece_attacking?(attacking_square, attacked_square)
     end
   end
 
-  # Determine whether a piece at square "from" can move to "to" without capturing,
-  # not taking into account other considerations like pins.
-  def piece_can_move?(from, to)
-    piece = board.get(from)
-    board.find_pieces.include?(piece) && board.get(to).nil? && piece.moves(board, from).include?(to)
-  end
-
   # returns true if the king of the specified color is in check
   def in_check?(color = @position.current_color)
+    return INVALID_ARGUMENT unless COLORS.include?(color)
+
     _k, king_square = @board.pieces_with_squares(color: color, type: :king).first
     square_attacked?(king_square, flip_color(color))
   end
 
   # returns true if the king of the specified color is in checkmate
   def in_checkmate?(color = @position.current_color)
-    in_check?(color) && no_legal_moves?(color)
+    return INVALID_ARGUMENT unless COLORS.include?(color)
+
+    in_check?(color) && legal_moves(color).none?
   end
 
   # Returns true if the game must end in a draw
@@ -75,7 +94,7 @@ class GameQuery
 
   # returns true if the game is in stalemate
   def stalemate?
-    !in_check? && no_legal_moves?(@position.current_color)
+    !in_check? && legal_moves(@position.current_color).none?
   end
 
   # According to FIDE rules, as listed here:
@@ -130,5 +149,9 @@ class GameQuery
 
     file_distance, rank_distance = bishop_pos1.distance(bishop_pos2)
     (file_distance + rank_distance).even?
+  end
+
+  def valid_square?(square)
+    square.is_a?(Square) && square.valid?
   end
 end

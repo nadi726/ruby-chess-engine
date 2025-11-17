@@ -36,6 +36,11 @@ class GameState
   end
 
   def initialize(position: Position.start, move_history: Immutable::List[], position_signatures: Immutable::Hash[])
+    unless position.is_a?(Position) && move_history.is_a?(Enumerable) && position_signatures.respond_to?(:fetch)
+      raise ArgumentError,
+            "Invalid argument for GameQuery. At least one of: #{position}, #{move_history}, #{position_signatures}"
+    end
+
     @position = position
     @move_history = move_history
     @position_signatures = position_signatures

@@ -9,16 +9,173 @@ require 'data_definitions/piece'
 require 'immutable'
 
 RSpec.describe GameQuery do
-  describe '#piece_attacking?' do
-    # TODO
-  end
+  describe 'with invalid arguments' do
+    let(:valid_square) { Square[:e, 1] }
+    let(:invalid_squares) { [nil, :e3, Square[:x, 1]] }
+    let(:invalid_colors) { [nil, 4, :pink, :blaaack] }
 
-  describe '#square_attacked?' do
-    # TODO
+    it 'for #piece_can_move?' do
+      invalid_squares.each do |invalid_square|
+        expect(start_query.piece_can_move?(invalid_square, valid_square)).to eq(GameQuery::INVALID_ARGUMENT)
+        expect(start_query.piece_can_move?(valid_square, invalid_square)).to eq(GameQuery::INVALID_ARGUMENT)
+      end
+    end
+
+    it 'for #piece_attacking?' do
+      invalid_squares.each do |invalid_square|
+        expect(start_query.piece_attacking?(invalid_square, valid_square)).to eq(GameQuery::INVALID_ARGUMENT)
+        expect(start_query.piece_attacking?(valid_square, invalid_square)).to eq(GameQuery::INVALID_ARGUMENT)
+      end
+    end
+
+    it 'for #square_attacked?' do
+      invalid_squares.each do |invalid_square|
+        expect(start_query.square_attacked?(invalid_square, :white)).to eq(GameQuery::INVALID_ARGUMENT)
+      end
+
+      invalid_colors.each do |invalid_color|
+        expect(start_query.square_attacked?(invalid_color)).to eq(GameQuery::INVALID_ARGUMENT)
+      end
+    end
+
+    it 'for #legal moves' do
+      invalid_colors.each do |invalid_color|
+        expect(start_query.legal_moves(invalid_color)).to eq(GameQuery::INVALID_ARGUMENT)
+      end
+    end
+
+    it 'for #in_check?' do
+      invalid_colors.each do |invalid_color|
+        expect(start_query.in_check?(invalid_color)).to eq(GameQuery::INVALID_ARGUMENT)
+      end
+    end
   end
 
   describe '#piece_can_move?' do
-    # TODO
+    it 'returns true for valid start and end squares' do
+      expect(start_query.piece_can_move?(Square[:e, 2], Square[:e, 3])).to eq(true)
+    end
+
+    it 'returns false when there is no piece at starting square' do
+      expect(start_query.piece_can_move?(Square[:f, 5], Square[:f, 6])).to eq(false)
+    end
+
+    it 'returns false when the piece cannot even geometrically move to the end square' do
+      expect(start_query.piece_can_move?(Square[:e, 2], Square[:e, 6])).to eq(false)
+    end
+
+    it 'returns false when the path to the end square is blocked' do
+      expect(start_query.piece_can_move?(Square[:a, 8], Square[:a, 3])).to eq(false)
+    end
+
+    it 'returns false when end square is occupied' do
+      expect(start_query.piece_can_move?(Square[:g, 1], Square[:e, 2])).to eq(false)
+    end
+  end
+
+  describe '#piece_attacking?' do
+    it 'returns true for valid attack' do
+      expect(start_query.piece_attacking?(Square[:g, 2], Square[:h, 3])).to eq(true)
+    end
+    it 'returns false when the piece cannot "geometrically capture" the square' do
+      expect(start_query.piece_attacking?(Square[:e, 2], Square[:h, 3])).to eq(false)
+    end
+
+    it 'returns false when the path is blocked' do
+      expect(start_query.piece_attacking?(Square[:h, 1], Square[:h, 6])).to eq(false)
+    end
+
+    it 'returns false when target square is occupied by a piece of the same color' do
+      expect(start_query.piece_attacking?(Square[:f, 8], Square[:e, 7])).to eq(false)
+    end
+  end
+
+  describe '#square_attacked?' do
+    it 'returns true for an empty square attacked by either color' do
+      expect(start_query.square_attacked?(Square[:h, 3], :white)).to eq(true)
+      expect(start_query.square_attacked?(Square[:h, 6], :black)).to eq(true)
+    end
+
+    it 'returns true for an occupied square attacked by a piece of the other color' do
+      new_board = start_board.insert(Piece[:white, :queen], Square[:a, 6])
+      new_pos = Position.start.with(board: new_board)
+      query = GameQuery.new(new_pos)
+      expect(query.square_attacked?(Square[:a, 6], :black)).to eq(true)
+      expect(query.square_attacked?(Square[:a, 6], :white)).to eq(false)
+    end
+
+    it 'returns false for an empty square not attacked by color' do
+      expect(start_query.square_attacked?(Square[:d, 4], :white)).to eq(false)
+      expect(start_query.square_attacked?(Square[:d, 4], :black)).to eq(false)
+    end
+
+    it 'returns false for an occupied square with piece of the same color' do
+      expect(start_query.square_attacked?(Square[:f, 1], :white)).to eq(false)
+    end
+  end
+
+  describe '#legal moves' do
+    it 'returns all legal moves from starting position' do
+      legal_moves = start_query.legal_moves(:white)
+
+      # pawns
+      Square::FILES.each do |file|
+        one_rank_move = MovePieceEvent[Piece[:white, :pawn], Square[file, 2], Square[file, 3]]
+        two_ranks_move = one_rank_move.with(to: Square[file, 4])
+        expect(legal_moves).to include(one_rank_move, two_ranks_move)
+      end
+
+      knight1_moves = %i[a c].map do |to_file|
+        MovePieceEvent[Piece[:white, :knight], Square[:b, 1], Square[to_file, 3]]
+      end
+      knight2_moves = %i[f h].map do |to_file|
+        MovePieceEvent[Piece[:white, :knight], Square[:g, 1], Square[to_file, 3]]
+      end
+
+      expect(legal_moves).to include(*(knight1_moves + knight2_moves))
+    end
+
+    it 'returns empty enumerable when there are no legal moves' do
+      board = fill_board(
+        [
+          [Piece[:black, :king], Square[:a, 8]],
+          [Piece[:white, :king], Square[:c, 1]],
+          [Piece[:white, :queen], Square[:c, 7]]
+
+        ]
+      )
+      position = Position.start.with(board: board, current_color: :black, castling_rights: CastlingRights.none)
+      query = GameQuery.new(position)
+
+      expect(query.legal_moves(:black)).to be_none
+    end
+    it 'returns special moves when available' do
+      # Setup a single position with promotion, capture, castling and enpassant available
+      board = fill_board(
+        [
+          [Piece[:white, :king], Square[:e, 1]],
+          [Piece[:white, :rook], Square[:h, 1]],
+          [Piece[:white, :pawn], Square[:c, 5]],
+          [Piece[:white, :pawn], Square[:g, 7]],
+          [Piece[:black, :king], Square[:a, 8]],
+          [Piece[:black, :rook], Square[:d, 2]],
+          [Piece[:black, :pawn], Square[:b, 5]]
+        ]
+      )
+      castling_rights = CastlingRights[white: CastlingSides[true, false], black: CastlingSides.none]
+      position = Position[board: board, current_color: :white, en_passant_target: Square[:b, 6],
+                          castling_rights: castling_rights, halfmove_clock: 20]
+      query = GameQuery.new(position, [MovePieceEvent[Piece[:black, :pawn], Square[:b, 7], Square[:b, 5]]])
+
+      events = [
+        MovePieceEvent[Piece[:white, :pawn], Square[:g, 7], Square[:g, 8]].promote(:queen),
+        MovePieceEvent[Piece[:white, :king], Square[:e, 1], Square[:d, 2]]
+          .capture(Square[:d, 2], Piece[:black, :rook]),
+        CastlingEvent[:white, :kingside],
+        EnPassantEvent[:white, Square[:c, 5], Square[:b, 6]]
+      ]
+      expect(query.legal_moves(:white)).to include(*events)
+    end
   end
 
   describe '#in_check?' do
@@ -363,8 +520,8 @@ RSpec.describe GameQuery do
           [Piece[:white, :rook], Square[:h, 1]]
         ]
         position = Position.start.with(board: board, castling_rights: CastlingRights[
-          CastlingSide[true, false],
-          CastlingSide.none
+          CastlingSides[true, false],
+          CastlingSides.none
         ])
         query = GameQuery.new(position)
 
@@ -381,7 +538,7 @@ RSpec.describe GameQuery do
         ]
 
         position = Position.start.with(board: board, castling_rights:
-                                       CastlingRights[CastlingSide[true, false], CastlingSide.none])
+                                       CastlingRights[CastlingSides[true, false], CastlingSides.none])
         query = GameQuery.new(position)
 
         expect(query).not_to be_in_checkmate

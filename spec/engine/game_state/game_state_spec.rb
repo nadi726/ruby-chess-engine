@@ -222,7 +222,7 @@ RSpec.describe GameState do
         gamestate = GameState.new(position: Position.start.with(board: board, current_color: :black))
         gamestate = gamestate.apply_event(black_king_move)
         position = gamestate.query.position
-        empty_castling_rights = CastlingRights[CastlingSide.start, CastlingSide.none]
+        empty_castling_rights = CastlingRights[CastlingSides.start, CastlingSides.none]
         expect(position.castling_rights).to eq empty_castling_rights
       end
 
@@ -237,8 +237,8 @@ RSpec.describe GameState do
         gamestate = gamestate.apply_event(white_rook_move)
         position = gamestate.query.position
 
-        expect(position.castling_rights.white).to eq CastlingSide[kingside: true, queenside: false]
-        expect(position.castling_rights.black).to eq CastlingSide.start # unchanged
+        expect(position.castling_rights.white).to eq CastlingSides[kingside: true, queenside: false]
+        expect(position.castling_rights.black).to eq CastlingSides.start # unchanged
       end
       it 'revokes castling rights of the other side when rook is captured' do
         board = start_board
@@ -251,7 +251,7 @@ RSpec.describe GameState do
         gamestate = gamestate.apply_event(white_rook_move)
         position = gamestate.query.position
 
-        expect(position.castling_rights.black).to eq CastlingSide[kingside: false, queenside: true]
+        expect(position.castling_rights.black).to eq CastlingSides[kingside: false, queenside: true]
       end
 
       it 'updates correctly after castling' do
@@ -265,8 +265,8 @@ RSpec.describe GameState do
         gamestate = gamestate.apply_event(castling_event)
         position = gamestate.query.position
 
-        expect(position.castling_rights.white).to eq CastlingSide.none
-        expect(position.castling_rights.black).to eq CastlingSide.start # unaffected
+        expect(position.castling_rights.white).to eq CastlingSides.none
+        expect(position.castling_rights.black).to eq CastlingSides.start # unaffected
       end
     end
 
@@ -382,8 +382,8 @@ RSpec.describe GameState do
             current_color: :white,
             en_passant_target: nil,
             castling_rights: CastlingRights[
-                              CastlingSide[true, false],
-                              CastlingSide.none
+                              CastlingSides[true, false],
+                              CastlingSides.none
                             ],
             halfmove_clock: 2
           ]
