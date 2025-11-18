@@ -2,6 +2,7 @@
 
 require_relative 'board'
 require_relative 'position'
+require_relative 'game_history'
 require_relative 'game_query'
 require_relative '../data_definitions/piece'
 require_relative '../data_definitions/square'
@@ -13,7 +14,7 @@ require 'immutable'
 # Represents the immutable state of the game at a specific point in time.
 #
 # Holds all the information needed to fully describe the current state of a chess game:
-# the board layout, which player's turn it is, move history, castling rights, en passant target, and more.
+# the board layout, which player's turn it is, history, castling rights, en passant target, and more.
 #
 # Responsibilities:
 # - Answer queries about the current position (through the `GameQuery` object).
@@ -21,30 +22,41 @@ require 'immutable'
 #
 # Internal structure:
 # - position: A `Position` object representing the current game position
-# - move_history: An immutable list of events, in the order they were applied.
-# - position_signatures: An immutable hash counting position signatures, used for detecting repetition.
+# - history: A `GameHistory` object representing all that happened since the creation of the originating `GameState`.
 # - query: A `GameQuery` object that provides a high-level interface for interrogating the state.
 #
 # The design avoids mutable state — each change produces a new `GameState`, leaving previous states untouched.
 # This makes reasoning about the engine easier and enables features like undo and state comparison.
 class GameState
-  attr_reader :query, :position
+  attr_reader :query, :position, :history
 
   # The state at the game's start
   def self.start
-    GameState.new
+    GameState.new(position: Position.start, history: GameHistory.start)
   end
 
-  def initialize(position: Position.start, move_history: Immutable::List[], position_signatures: Immutable::Hash[])
-    unless position.is_a?(Position) && move_history.is_a?(Enumerable) && position_signatures.respond_to?(:fetch)
+  # Load a new gamestate from position. Suitable for FEN.
+  def self.load(position)
+    history = GameHistory.start.with(start_position: position)
+    GameState.new(position: position, history: history)
+  end
+
+  # Make a new `GameState` from an existing one.
+  # Good for computations requiring forking the state.
+  def with(position: @position, history: @history)
+    GameState.new(position: position, history: history)
+  end
+
+  # Low-level initialization, loads all fields. Use with caution.
+  def initialize(position: Position.start, history: GameHistory.start)
+    unless position.is_a?(Position) && history.is_a?(GameHistory)
       raise ArgumentError,
-            "Invalid argument for GameQuery. At least one of: #{position}, #{move_history}, #{position_signatures}"
+            "One or more invalid arguments: #{position}, #{history}"
     end
 
     @position = position
-    @move_history = move_history
-    @position_signatures = position_signatures
-    @query = GameQuery.new(@position, @move_history, @position_signatures)
+    @history = history
+    @query = GameQuery.new(@position, @history)
   end
 
   # Process an event to produce the next `GameState`
@@ -52,17 +64,21 @@ class GameState
   def apply_event(event)
     raise ArgumentError unless event.is_a?(GameEvent)
 
-    signature_count = @position_signatures.fetch(@position.signature, 0)
-    signatures = @position_signatures.put(@position.signature, signature_count + 1)
-
     GameState.new(
       position: advance_position(event),
-      move_history: @move_history.add(event),
-      position_signatures: signatures
+      history: advance_history(event)
     )
   end
 
   private
+
+  def advance_history(event)
+    signatures = history.position_signatures
+    signature_count = signatures.fetch(@position.signature, 0)
+    new_signatures = signatures.put(@position.signature, signature_count + 1)
+
+    history.with(moves: history.moves.add(event), position_signatures: new_signatures)
+  end
 
   def advance_position(event)
     Position.new(

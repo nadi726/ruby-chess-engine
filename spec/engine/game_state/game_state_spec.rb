@@ -74,7 +74,7 @@ RSpec.describe GameState do
             [Piece[:black, :king], Square[:e, 8]]
           ]
         end
-        let(:capture_state) { GameState.new(position: Position.start.with(board: board)) }
+        let(:capture_state) { GameState.load(Position.start.with(board: board)) }
 
         [
           {
@@ -114,7 +114,7 @@ RSpec.describe GameState do
         context 'castling' do
           # Helper that runs the castling and asserts
           def expect_castling_on(event:, initial_board:, state: nil) # rubocop:disable Metrics/AbcSize
-            state ||= GameState.new(position: Position.start.with(board: initial_board))
+            state ||= GameState.load(Position.start.with(board: initial_board))
             new_state = state.apply_event(event)
             expect(new_state).to have_piece_at(event.king_to, Piece[event.color, :king])
             expect(new_state).to have_piece_at(event.rook_to, Piece[event.color, :rook])
@@ -185,10 +185,10 @@ RSpec.describe GameState do
             black_pawn_move = MovePieceEvent[Piece[:black, :pawn], Square[:d, 7], Square[:d, 5]]
             # Realistically, the en passant validity is pre-computed from the target,
             # so this is unnecessary, but added here for good measure
-            move_history = Immutable::List[black_pawn_move]
+            history = GameHistory.start.with(moves: Immutable::List[black_pawn_move])
 
             gamestate = GameState.new(position: Position.start.with(board: board, en_passant_target: Square[:d, 6]),
-                                      move_history: move_history)
+                                      history: history)
             gamestate = gamestate.apply_event(en_passant_event)
 
             expect_en_passant_applied(gamestate)
@@ -219,7 +219,7 @@ RSpec.describe GameState do
                 .move(Square[:b, 1], Square[:a, 3])
         black_king_move = MovePieceEvent[Piece[:black, :king], Square[:e, 8], Square[:d, 7]]
 
-        gamestate = GameState.new(position: Position.start.with(board: board, current_color: :black))
+        gamestate = GameState.load(Position.start.with(board: board, current_color: :black))
         gamestate = gamestate.apply_event(black_king_move)
         position = gamestate.query.position
         empty_castling_rights = CastlingRights[CastlingSides.start, CastlingSides.none]
@@ -233,7 +233,7 @@ RSpec.describe GameState do
                 .remove(Square[:c, 1])
         white_rook_move = MovePieceEvent[Piece[:white, :rook], Square[:a, 1], Square[:a, 3]]
 
-        gamestate = GameState.new(position: Position.start.with(board: board))
+        gamestate = GameState.load(Position.start.with(board: board))
         gamestate = gamestate.apply_event(white_rook_move)
         position = gamestate.query.position
 
@@ -247,7 +247,7 @@ RSpec.describe GameState do
         white_rook_move = MovePieceEvent[Piece[:white, :rook], Square[:h, 1], Square[:h, 8]]
                           .capture(Square[:h, 8], Piece[:black, :rook])
 
-        gamestate = GameState.new(position: Position.start.with(board: board))
+        gamestate = GameState.load(Position.start.with(board: board))
         gamestate = gamestate.apply_event(white_rook_move)
         position = gamestate.query.position
 
@@ -261,7 +261,7 @@ RSpec.describe GameState do
                 .remove(Square[:g, 1])
         castling_event = CastlingEvent[:white, :kingside]
 
-        gamestate = GameState.new(position: Position.start.with(board: board))
+        gamestate = GameState.load(Position.start.with(board: board))
         gamestate = gamestate.apply_event(castling_event)
         position = gamestate.query.position
 
@@ -279,8 +279,8 @@ RSpec.describe GameState do
       end
       it 'resets en passant target when not applicable' do
         move_event = MovePieceEvent[Piece[:black, :knight], Square[:g, 8], Square[:f, 6]]
-        gamestate = GameState.new(position: Position.start.with(en_passant_target: Square[:d, 3],
-                                                                current_color: :black))
+        gamestate = GameState.load(Position.start.with(en_passant_target: Square[:d, 3],
+                                                       current_color: :black))
         gamestate = gamestate.apply_event(move_event)
         position = gamestate.query.position
         expect(position.en_passant_target).to eq(nil)
@@ -324,7 +324,7 @@ RSpec.describe GameState do
 
         it 'resets on pawn move' do
           position = Position.start.with(halfmove_clock: 2)
-          state = GameState.new(position: position)
+          state = GameState.load(position)
 
           new_state = state.apply_event(MovePieceEvent[Piece[:white, :pawn], Square[:e, 2], Square[:e, 4]])
           expect(halfmove_clock(new_state)).to eq(0)
@@ -341,7 +341,7 @@ RSpec.describe GameState do
           )
 
           position = Position.start.with(board: board, halfmove_clock: 10)
-          state = GameState.new(position: position)
+          state = GameState.load(position)
 
           new_state = state.apply_event(
             MovePieceEvent[Piece[:white, :pawn], Square[:e, 4], Square[:d, 5]]
@@ -362,7 +362,7 @@ RSpec.describe GameState do
           )
 
           position = Position.start.with(board: board, en_passant_target: Square[:d, 6], halfmove_clock: 13)
-          state = GameState.new(position: position)
+          state = GameState.load(position)
 
           new_state = state.apply_event(EnPassantEvent[:white, Square[:e, 5], Square[:d, 6]])
           expect(halfmove_clock(new_state)).to eq 0
@@ -390,10 +390,10 @@ RSpec.describe GameState do
 
           alt_position = base_position.with(current_color: :black)
 
-          gamestate1 = GameState.new(position: base_position)
+          gamestate1 = GameState.load(base_position)
                                 .apply_event(MovePieceEvent[Piece[:white, :king], Square[:e, 1], Square[:e, 2]])
 
-          gamestate2 = GameState.new(position: alt_position)
+          gamestate2 = GameState.load(alt_position)
                                 .apply_event(MovePieceEvent[Piece[:black, :king], Square[:e, 8], Square[:e, 7]])
 
           # The original position should be counted once

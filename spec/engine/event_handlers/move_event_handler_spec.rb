@@ -33,7 +33,7 @@ RSpec.describe MoveEventHandler do
   end
 
   let(:black_query) do
-    GameQuery.new(white_query.position.with(current_color: :black))
+    white_query.with(position: white_query.position.with(current_color: :black))
   end
 
   context 'simple moves' do
@@ -175,14 +175,15 @@ RSpec.describe MoveEventHandler do
       )
     end
 
-    let(:new_move_history) do
-      white_query.move_history.add(Immutable::List[black_pawn_move])
+    let(:new_history) do
+      prev_history = white_query.history
+      prev_history.with(moves: prev_history.moves.add(Immutable::List[black_pawn_move]))
     end
 
     let(:query) do
       GameQuery.new(
         Position.start.with(board: new_board, en_passant_target: Square[:d, 6]),
-        new_move_history
+        new_history
       )
     end
 
@@ -261,8 +262,8 @@ RSpec.describe MoveEventHandler do
     end
 
     it 'rejects when not given a `MovePieceEvent`' do
-      expect(MoveEventHandler.call(start_query, EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]])
-                            ).to be_a_failed_handler_result
+      expect(MoveEventHandler.call(start_query,
+                                   EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]])).to be_a_failed_handler_result
       expect(MoveEventHandler.call(start_query, nil)).to be_a_failed_handler_result
     end
 

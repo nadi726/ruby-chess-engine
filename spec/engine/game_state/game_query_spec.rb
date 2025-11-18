@@ -98,8 +98,7 @@ RSpec.describe GameQuery do
 
     it 'returns true for an occupied square attacked by a piece of the other color' do
       new_board = start_board.insert(Piece[:white, :queen], Square[:a, 6])
-      new_pos = Position.start.with(board: new_board)
-      query = GameQuery.new(new_pos)
+      query = GameQuery.new(Position.start.with(board: new_board))
       expect(query.square_attacked?(Square[:a, 6], :black)).to eq(true)
       expect(query.square_attacked?(Square[:a, 6], :white)).to eq(false)
     end
@@ -165,7 +164,8 @@ RSpec.describe GameQuery do
       castling_rights = CastlingRights[white: CastlingSides[true, false], black: CastlingSides.none]
       position = Position[board: board, current_color: :white, en_passant_target: Square[:b, 6],
                           castling_rights: castling_rights, halfmove_clock: 20]
-      query = GameQuery.new(position, [MovePieceEvent[Piece[:black, :pawn], Square[:b, 7], Square[:b, 5]]])
+      history = GameHistory[moves: [MovePieceEvent[Piece[:black, :pawn], Square[:b, 7], Square[:b, 5]]]]
+      query = GameQuery.new(position, history)
 
       events = [
         MovePieceEvent[Piece[:white, :pawn], Square[:g, 7], Square[:g, 8]].promote(:queen),
@@ -857,13 +857,13 @@ RSpec.describe GameQuery do
 
     it 'returns true for the current square being repeated 3 times' do
       position_signatures = Immutable::Hash[position.signature => 3, Position.start.signature => 1]
-      query = GameQuery.new(position, [], position_signatures)
+      query = GameQuery.new(position, GameHistory.start.with(position_signatures: position_signatures))
       expect(query).to be_threefold_repetition
     end
 
     it 'returns false for the current position being repeated less than 3 times' do
       position_signatures = Immutable::Hash[position.signature => 2, Position.start.signature => 1]
-      query = GameQuery.new(position, [], position_signatures)
+      query = GameQuery.new(position, GameHistory.start.with(position_signatures: position_signatures))
       expect(query).not_to be_threefold_repetition
     end
 
@@ -876,7 +876,7 @@ RSpec.describe GameQuery do
           [Piece[:black, :rook], Square[:a, 8]]
         ]
       ))
-      query = GameQuery.new(current_position, [], position_signatures)
+      query = GameQuery.new(current_position, GameHistory.start.with(position_signatures: position_signatures))
       expect(query).not_to be_threefold_repetition
     end
   end

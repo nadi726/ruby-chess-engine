@@ -2,10 +2,11 @@
 
 require 'immutable'
 require_relative 'game_state'
+require_relative 'game_history'
+require_relative 'position'
 require_relative 'legal_moves_helper'
 require_relative '../data_definitions/colors'
 require_relative '../data_definitions/square'
-require_relative 'position'
 
 # Provides derived information about the current game state.
 #
@@ -19,23 +20,29 @@ class GameQuery
   include LegalMovesHelper
 
   INVALID_ARGUMENT = :invalid
-  attr_reader :position, :move_history, :position_signatures, :board
+  attr_reader :position, :history
 
-  def initialize(position, move_history = Immutable::List[], position_signatures = Immutable::Hash[])
-    unless position.is_a?(Position) && move_history.is_a?(Enumerable) && position_signatures.respond_to?(:fetch)
+  def initialize(position, history = GameHistory.start)
+    unless position.is_a?(Position) && history.is_a?(GameHistory)
       raise ArgumentError,
-            "Invalid argument for GameQuery. At least one of: #{position}, #{move_history}, #{position_signatures}"
+            "One or more invalid arguments for GameQuery: #{position}, #{history}"
     end
 
     @position = position
-    @move_history = Immutable.from move_history
-    @position_signatures = Immutable.from position_signatures
-    @board = position.board # For easier access
+    @history = history
+  end
+
+  def with(position: @position, history: @history)
+    self.class.new(position, history)
   end
 
   def state
-    @state ||= GameState.new(position: position, move_history: move_history, position_signatures: position_signatures)
+    @state ||= GameState.new(position: position, history: history)
   end
+
+  # For easier access
+  def board = position.board
+  def position_signatures = history.position_signatures
 
   # Determine whether a piece at square "from" can move to "to" without capturing,
   # not taking into account other considerations like pins.
@@ -61,7 +68,7 @@ class GameQuery
   def square_attacked?(attacked_square, color = @position.other_color)
     return INVALID_ARGUMENT unless valid_square?(attacked_square) && COLORS.include?(color)
 
-    other_pieces_squares = @board.pieces_with_squares(color: color)
+    other_pieces_squares = board.pieces_with_squares(color: color)
     other_pieces_squares.any? do |_p, attacking_square|
       piece_attacking?(attacking_square, attacked_square)
     end
@@ -71,7 +78,7 @@ class GameQuery
   def in_check?(color = @position.current_color)
     return INVALID_ARGUMENT unless COLORS.include?(color)
 
-    _k, king_square = @board.pieces_with_squares(color: color, type: :king).first
+    _k, king_square = board.pieces_with_squares(color: color, type: :king).first
     square_attacked?(king_square, flip_color(color))
   end
 
@@ -100,8 +107,8 @@ class GameQuery
   # According to FIDE rules, as listed here:
   # https://www.chess.com/terms/draw-chess#dead-position
   def insufficient_material?
-    white_types = @board.find_pieces(color: :white).map(&:type)
-    black_types = @board.find_pieces(color: :black).map(&:type)
+    white_types = board.find_pieces(color: :white).map(&:type)
+    black_types = board.find_pieces(color: :black).map(&:type)
 
     INSUFFICIENT_COMBINATIONS.any? do |combo|
       match_combination?(white_types, black_types, combo) ||
@@ -111,11 +118,11 @@ class GameQuery
 
   # Added by FIDE in 2014
   def fivefold_repetition?
-    @position_signatures.fetch(@position.signature, 0) >= 5
+    @history.position_signatures.fetch(@position.signature, 0) >= 5
   end
 
   def threefold_repetition?
-    @position_signatures.fetch(@position.signature, 0) >= 3
+    @history.position_signatures.fetch(@position.signature, 0) >= 3
   end
 
   def fifty_move_rule?
@@ -143,8 +150,8 @@ class GameQuery
   # (only relevant when each side has exactly one bishop)
   # Used in #insufficient_material?
   def same_color_bishops?
-    bishop_pos1 = @board.pieces_with_squares(color: :white, type: :bishop).first&.last
-    bishop_pos2 = @board.pieces_with_squares(color: :black, type: :bishop).first&.last
+    bishop_pos1 = board.pieces_with_squares(color: :white, type: :bishop).first&.last
+    bishop_pos2 = board.pieces_with_squares(color: :black, type: :bishop).first&.last
     return false unless bishop_pos1 && bishop_pos2
 
     file_distance, rank_distance = bishop_pos1.distance(bishop_pos2)

@@ -30,7 +30,7 @@ RSpec.describe Engine do
     )
     position = Position.start.with(board: board, current_color: :white,
                                    castling_rights: CastlingRights.none)
-    state = GameState.new(position: position)
+    state = GameState.load(position)
     engine_from_state(state, endgame_status: GameOutcome[:draw, :insufficient_material])
   end
 
@@ -130,7 +130,7 @@ RSpec.describe Engine do
           ]
         )
         position = Position.start.with(board: board, current_color: :white, castling_rights: CastlingRights.none)
-        state = GameState.new(position: position)
+        state = GameState.load(position)
         result = engine_from_state(state).play_turn(MovePieceEvent[Piece[nil, :queen], Square[:c, 3], Square[:c, 7]])
         expect(result.game_ended?).to eq(true)
         expect(result.endgame_status).to eq(GameOutcome[:draw, :stalemate])
@@ -238,7 +238,7 @@ RSpec.describe Engine do
     context '#claim_draw' do
       it 'ends in a draw when draw claim is possible' do
         position = Position.start.with(castling_rights: CastlingRights.none, halfmove_clock: 100)
-        engine = engine_from_state(GameState.new(position: position))
+        engine = engine_from_state(GameState.load(position))
         result = engine.claim_draw
         expect(result.endgame_status).to eq(GameOutcome[:draw, :fifty_move])
       end

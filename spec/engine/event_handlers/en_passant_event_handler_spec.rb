@@ -3,6 +3,7 @@
 require 'game_state/game_query'
 require 'game_state/board'
 require 'game_state/position'
+require 'game_state/game_history'
 require 'event_handlers/en_passant_event_handler'
 require 'data_definitions/events'
 require 'data_definitions/square'
@@ -18,8 +19,8 @@ RSpec.describe EnPassantEventHandler do
     MovePieceEvent[Square[:d, 7], Square[:d, 5], Piece[:black, :pawn]]
   end
 
-  let(:move_history) do
-    Immutable::List[black_pawn_move]
+  let(:history) do
+    GameHistory.start.with(moves: Immutable::List[black_pawn_move])
   end
 
   let(:query) do
@@ -29,7 +30,7 @@ RSpec.describe EnPassantEventHandler do
         en_passant_target: Square[:d, 6],
         current_color: :white
       ),
-      move_history
+      history
     )
   end
 
@@ -59,14 +60,13 @@ RSpec.describe EnPassantEventHandler do
 
   it 'rejects if last move was not a double-step pawn move' do
     one_step_move = MovePieceEvent[Piece[:black, :pawn], Square[:d, 6], Square[:d, 5]]
-    move_history = Immutable::List[one_step_move]
     query = GameQuery.new(
       Position.start.with(
         board: board,
         en_passant_target: nil,
         current_color: :white
       ),
-      move_history
+      GameHistory.start.with(moves: [one_step_move])
     )
     event = EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]]
     result = EnPassantEventHandler.call(query, event)
@@ -76,14 +76,13 @@ RSpec.describe EnPassantEventHandler do
   it 'rejects if not immediate (other move played in between)' do
     black_double_push = MovePieceEvent[Piece[:black, :pawn], Square[:d, 7], Square[:d, 5]]
     some_other_move = MovePieceEvent[Piece[:white, :bishop], Square[:c, 1], Square[:e, 3]]
-    move_history = Immutable::List[black_double_push, some_other_move]
     query = GameQuery.new(
       Position.start.with(
         board: board,
         en_passant_target: nil,
         current_color: :white
       ),
-      move_history
+      GameHistory.start.with(moves: [black_double_push, some_other_move])
     )
     event = EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]]
     result = EnPassantEventHandler.call(query, event)
@@ -91,31 +90,28 @@ RSpec.describe EnPassantEventHandler do
   end
 
   it 'rejects if it is not the right player’s turn' do
-    query = GameQuery.new(
-      Position.start.with(
-        board: board,
-        en_passant_target: Square[:d, 6],
-        current_color: :black
-      ),
-      move_history
-    )
+    new_query = query.with(position: Position.start.with(
+      board: board,
+      en_passant_target: Square[:d, 6],
+      current_color: :black
+    ))
+
     event = EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]]
-    result = EnPassantEventHandler.call(query, event)
+    result = EnPassantEventHandler.call(new_query, event)
     expect(result).to be_a_failed_handler_result
   end
 
   it "doesn't put the moving player's king in check" do
     new_board = board.move(Square[:h, 8], Square[:e, 6])
-    query = GameQuery.new(
-      Position.start.with(
+    new_query = query.with(
+      position: Position.start.with(
         board: new_board,
         en_passant_target: Square[:d, 6],
         current_color: :white
-      ),
-      move_history
+      )
     )
     event = EnPassantEvent[nil, Square[:e, 5], Square[:d, 6]]
-    result = EnPassantEventHandler.call(query, event)
+    result = EnPassantEventHandler.call(new_query, event)
     expect(result).to be_a_failed_handler_result
   end
 
@@ -157,8 +153,8 @@ RSpec.describe EnPassantEventHandler do
     end
 
     it 'rejects when disambiguation fails (`from` not supplied)' do
-      board = query.position.board.move(Square[:c, 2], Square[:c, 5])
-      new_query = GameQuery.new(query.position.with(board: board), move_history)
+      board = query.board.move(Square[:c, 2], Square[:c, 5])
+      new_query = query.with(position: query.position.with(board: board))
       event = EnPassantEvent[nil, Square[nil, 5], Square[:d, 6]]
       result = EnPassantEventHandler.call(new_query, event)
       expect(result).to be_a_failed_handler_result
@@ -180,7 +176,7 @@ RSpec.describe EnPassantEventHandler do
 
     it 'accepts when `from` square gives just enough to solve ambiguity' do
       new_board = board.move(Square[:c, 2], Square[:c, 5])
-      new_query = GameQuery.new(query.position.with(board: new_board), move_history)
+      new_query = query.with(position: query.position.with(board: new_board))
       event = EnPassantEvent[nil, Square[:c, nil], Square[:d, 6]]
       result = EnPassantEventHandler.call(new_query, event)
       expect(result).to be_a_successful_handler_result

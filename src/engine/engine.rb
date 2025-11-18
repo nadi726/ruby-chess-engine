@@ -48,7 +48,7 @@ class Engine # rubocop:disable Metrics/ClassLength
   # Starts a new game. Resets the game's state and starts a new session.
   def new_game
     update_game(
-      state: GameState.new,
+      state: GameState.start,
       endgame_status: nil, # nil for an ongoing game, `GameOutcome` for a concluded game
       offered_draw: nil, # color of whoever currently offers a draw, or nil if no draw is being offered
       event: nil, # the last event that was applied
