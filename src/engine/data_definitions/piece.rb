@@ -2,6 +2,7 @@
 
 require_relative 'primitives/movement'
 require_relative 'primitives/colors'
+require_relative 'primitives/notation'
 
 # Represents a single chess piece.
 #
@@ -122,21 +123,10 @@ class Piece
 
   public
 
-  PIECE_MAP = {
-    king: 'K',
-    queen: 'Q',
-    rook: 'R',
-    bishop: 'B',
-    knight: 'N',
-    pawn: 'P'
-  }.freeze
-
   def to_s
     return "#<Piece (INVALID) color=#{color.inspect} type=#{type.inspect}>" unless valid?
 
-    symbol = PIECE_MAP[type]
-    # If the piece is black, convert the symbol to lowercase
-    color == :black ? symbol.downcase : symbol
+    CoreNotation.piece_to_str(self)
   end
 
   # For cleaner test messages
