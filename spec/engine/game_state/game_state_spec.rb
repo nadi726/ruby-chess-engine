@@ -1,9 +1,6 @@
 # frozen_string_literal: true
 
 require 'game_state/game_state'
-require 'data_definitions/events'
-require 'data_definitions/square'
-require 'data_definitions/piece'
 
 # For the given `GameState`, determine whether a square is occupied by a certian piece
 RSpec::Matchers.define :have_piece_at do |sq, expected_piece|

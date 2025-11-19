@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
-require_relative '../data_definitions/events'
 require_relative 'event_handler'
 require_relative 'en_passant_event_handler'
+require_relative '../data_definitions/piece'
+require_relative '../data_definitions/square'
+require_relative '../data_definitions/events'
+require_relative '../data_definitions/primitives/colors'
 
 # Event handler for MovePieceEvent
 class MoveEventHandler < EventHandler
@@ -38,8 +41,8 @@ class MoveEventHandler < EventHandler
     piece_type = event.piece&.type || :pawn # Default to pawn if no piece specified
 
     # Validate piece type
-    unless PIECE_TYPES.include?(piece_type)
-      return failure("Invalid piece type: #{piece_type}. Must be one of: #{PIECE_TYPES.join(', ')}")
+    unless Piece::TYPES.include?(piece_type)
+      return failure("Invalid piece type: #{piece_type}. Must be one of: #{Piece::TYPES.join(', ')}")
     end
 
     piece = Piece[piece_color, piece_type]
@@ -107,8 +110,6 @@ class MoveEventHandler < EventHandler
     success(event.with(captured: CaptureData[captured_square, captured_piece]))
   end
 
-  PROMOTION_TYPES = %i[queen knight rook bishop].freeze
-  private_constant :PROMOTION_TYPES
   def resolve_promote_to(event)
     promote_to = event.promote_to
     unless should_promote?(event)
@@ -119,8 +120,8 @@ class MoveEventHandler < EventHandler
 
     return failure("Pawn move to #{event.to} requires promotion") if promote_to.nil?
 
-    unless PROMOTION_TYPES.include?(promote_to)
-      return failure("Invalid promotion piece type: #{promote_to}. Needs to be one of: #{PROMOTION_TYPES.join(', ')}")
+    unless Piece::PROMOTION_TYPES.include?(promote_to)
+      return failure("Invalid promotion piece type: #{promote_to}. Needs to be one of: #{Piece::PROMOTION_TYPES.join(', ')}")
     end
 
     success(event)

@@ -1,11 +1,9 @@
 # frozen_string_literal: true
 
 require 'data_definitions/piece'
-require 'data_definitions/square'
-require 'game_state/board'
 
 describe Piece do
-  let(:empty_board) { Board.from_flat_array Array.new(64) }
+  let(:empty_board) { Board.empty }
 
   describe '#moves' do
     context 'for king' do

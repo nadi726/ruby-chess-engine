@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 require 'engine'
-require 'parsers/identity_parser'
-require 'game_state/game_state'
-require 'data_definitions/events'
-require 'data_definitions/square'
 
 # Checks that the `GameUpdate`’s board matches the expected board.
 RSpec::Matchers.define :have_board do |board|

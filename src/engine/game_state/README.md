@@ -7,7 +7,5 @@ This folder implements the `GameState` abstraction.
 ## Included Files
 
 - `game_query.rb` – Handles all read-only queries on a given game state.
-- `position.rb` - A simple data container of a snapshot of the game at a certain turn.
-- `board.rb` – Provides an immutable interface to board state using a persistent array. Encapsulates piece placement, movement, and removal without mutation.
-- `persistent_array.rb` – A custom immutable array-like structure used exclusively by `Board`.
+- `game_history.rb` - Represents the game's history from the point a `GameState` was first initialized onwards.
 - `legal_moves_helper` - An internal `GameQuery` helper module; provides the `#legal_moves` private method.

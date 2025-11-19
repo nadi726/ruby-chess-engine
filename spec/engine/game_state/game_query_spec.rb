@@ -1,12 +1,6 @@
 # frozen_string_literal: true
 
 require 'game_state/game_query'
-require 'game_state/position'
-require 'game_state/board'
-require 'data_definitions/events'
-require 'data_definitions/square'
-require 'data_definitions/piece'
-require 'immutable'
 
 RSpec.describe GameQuery do
   describe 'with invalid arguments' do

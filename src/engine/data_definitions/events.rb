@@ -2,10 +2,10 @@
 
 require 'immutable'
 require 'wholeable'
-require_relative 'castling_data'
 require_relative 'square'
 require_relative 'piece'
-require_relative 'colors'
+require_relative 'primitives/colors'
+require_relative 'primitives/castling_data'
 
 # Events are immutable records representing game actions or state changes.
 # They are produced by the parser (user intent) and by the engine (execution outcome).

@@ -3,10 +3,10 @@
 require 'immutable'
 require_relative 'game_state'
 require_relative 'game_history'
-require_relative 'position'
 require_relative 'legal_moves_helper'
-require_relative '../data_definitions/colors'
 require_relative '../data_definitions/square'
+require_relative '../data_definitions/position'
+require_relative '../data_definitions/primitives/colors'
 
 # Provides derived information about the current game state.
 #

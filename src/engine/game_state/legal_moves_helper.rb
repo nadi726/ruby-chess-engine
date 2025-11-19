@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
+require_relative 'game_query'
 require_relative '../errors'
-require_relative '../data_definitions/events'
 require_relative '../data_definitions/piece'
-require_relative '../data_definitions/castling_data'
-require_relative '../data_definitions/colors'
+require_relative '../data_definitions/events'
+require_relative '../data_definitions/primitives/colors'
+require_relative '../data_definitions/primitives/castling_data'
 
 # An internal module for `GameQuery`
 # Generates all legal moves for the given color
@@ -67,7 +68,7 @@ module LegalMovesHelper
   end
 
   def each_promotion_event(event, &)
-    %i[queen rook bishop knight].each do |piece_type|
+    Piece::PROMOTION_TYPES.each do |piece_type|
       yield event.promote(piece_type)
     end
   end

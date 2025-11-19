@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
-require_relative '../data_definitions/events'
-require_relative '../data_definitions/colors'
 require_relative 'event_handler'
+require_relative '../data_definitions/events'
+require_relative '../data_definitions/square'
+require_relative '../data_definitions/primitives/colors'
 
 # Event handler for `EnPassantEvent`
 class EnPassantEventHandler < EventHandler

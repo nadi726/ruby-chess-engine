@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require_relative '../data_definitions/events'
 require_relative 'move_event_handler'
 require_relative 'en_passant_event_handler'
 require_relative 'castling_event_handler'
 require_relative '../errors'
+require_relative '../data_definitions/events'
 
 HANDLER_MAP = {
   MovePieceEvent => MoveEventHandler,

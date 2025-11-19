@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require_relative 'persistent_array'
-require_relative '../data_definitions/square'
-require_relative '../data_definitions/piece'
+require_relative 'piece'
+require_relative 'square'
 require_relative '../errors'
+require_relative 'components/persistent_array'
 
 # `Board` is an immutable chessboard representation.
 # Each square is mapped to either a piece or nil, using `Square` objects for coordinates.

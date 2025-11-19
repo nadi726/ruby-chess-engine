@@ -1,9 +1,6 @@
 # frozen_string_literal: true
 
-require 'game_state/board'
-require 'data_definitions/square'
-require 'data_definitions/piece'
-require 'errors'
+require 'data_definitions/board'
 
 RSpec.describe Board do
   subject(:empty_board) { described_class.from_flat_array(Array.new(64)) }

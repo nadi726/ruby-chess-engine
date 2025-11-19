@@ -1,11 +1,6 @@
 # frozen_string_literal: true
 
-require 'game_state/game_query'
-require 'game_state/board'
-require 'game_state/position'
 require 'event_handlers/move_event_handler'
-require 'data_definitions/events'
-require 'data_definitions/square'
 
 RSpec.describe MoveEventHandler do
   # A board & query setup used for most of the tests

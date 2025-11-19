@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
-require_relative '../data_definitions/events'
-require_relative '../data_definitions/castling_data'
 require_relative 'event_handler'
+require_relative '../data_definitions/events'
+require_relative '../data_definitions/primitives/colors'
+require_relative '../data_definitions/primitives/castling_data'
 
+# Event handler for `CastlingEvent`.
 class CastlingEventHandler < EventHandler
   private
 

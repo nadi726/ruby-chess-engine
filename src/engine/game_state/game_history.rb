@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'immutable'
-require_relative 'position'
+require_relative '../data_definitions/position'
 
 # Encapsulates all of the game's history, from a certain point up to a current point.
 #

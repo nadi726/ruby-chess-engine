@@ -1,15 +1,16 @@
 # frozen_string_literal: true
 
-require_relative 'board'
-require_relative 'position'
-require_relative 'game_history'
+require 'immutable'
 require_relative 'game_query'
+require_relative 'game_history'
+require_relative '../errors'
 require_relative '../data_definitions/piece'
 require_relative '../data_definitions/square'
-require_relative '../data_definitions/castling_data'
+require_relative '../data_definitions/board'
+require_relative '../data_definitions/position'
 require_relative '../data_definitions/events'
-require_relative '../data_definitions/colors'
-require 'immutable'
+require_relative '../data_definitions/primitives/colors'
+require_relative '../data_definitions/primitives/castling_data'
 
 # Represents the immutable state of the game at a specific point in time.
 #

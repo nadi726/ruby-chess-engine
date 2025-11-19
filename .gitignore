@@ -1,0 +1,22 @@
+# Standard .gitignore for a Ruby project
+
+# Bundler and gems
+/.bundle
+/vendor/bundle
+*.gem
+*.rbc
+
+# IDEs and editor files
+/.idea
+/.vscode
+*.swp
+*~
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Debugger history
+.byebug_history

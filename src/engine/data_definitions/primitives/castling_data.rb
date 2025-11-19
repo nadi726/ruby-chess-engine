@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'immutable'
-require_relative 'square'
+require_relative '../square'
 
 CASTLING_SIDES = %i[kingside queenside].freeze
 

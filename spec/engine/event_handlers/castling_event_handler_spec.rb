@@ -1,11 +1,6 @@
 # frozen_string_literal: true
 
-require 'game_state/game_query'
-require 'game_state/board'
-require 'game_state/position'
 require 'event_handlers/castling_event_handler'
-require 'data_definitions/events'
-require 'data_definitions/square'
 
 RSpec.describe CastlingEvent do
   let(:board) do

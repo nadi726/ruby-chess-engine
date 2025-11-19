@@ -1,12 +1,6 @@
 # frozen_string_literal: true
 
-require 'game_state/game_query'
-require 'game_state/board'
-require 'game_state/position'
-require 'game_state/game_history'
 require 'event_handlers/en_passant_event_handler'
-require 'data_definitions/events'
-require 'data_definitions/square'
 
 RSpec.describe EnPassantEventHandler do
   let(:board) do
