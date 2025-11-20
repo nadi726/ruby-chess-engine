@@ -157,7 +157,7 @@ RSpec.describe GameQuery do
       )
       castling_rights = CastlingRights[white: CastlingSides[true, false], black: CastlingSides.none]
       position = Position[board: board, current_color: :white, en_passant_target: Square[:b, 6],
-                          castling_rights: castling_rights, halfmove_clock: 20]
+                          castling_rights: castling_rights, halfmove_clock: 20, fullmove_number: 40]
       history = GameHistory[moves: [MovePieceEvent[Piece[:black, :pawn], Square[:b, 7], Square[:b, 5]]]]
       query = GameQuery.new(position, history)
 

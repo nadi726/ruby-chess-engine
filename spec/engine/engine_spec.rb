@@ -10,8 +10,10 @@ RSpec::Matchers.define :have_board do |board|
 end
 
 # Helper for tests only — bypasses `Engine`’s public constructor to inject arbitrary game states.
-def engine_from_state(state, parser: IdentityParser.new, endgame_status: nil, offered_draw: nil)
-  Engine.send(:__from_raw_state, state, parser: parser, endgame_status: endgame_status, offered_draw: offered_draw)
+def engine_from_state(state, offered_draw: nil)
+  engine = Engine.new(IdentityParser.new)
+  engine.send(:load_game_state, state, offered_draw: offered_draw)
+  engine
 end
 
 RSpec.describe Engine do
@@ -27,7 +29,7 @@ RSpec.describe Engine do
     position = Position.start.with(board: board, current_color: :white,
                                    castling_rights: CastlingRights.none)
     state = GameState.load(position)
-    engine_from_state(state, endgame_status: GameOutcome[:draw, :insufficient_material])
+    engine_from_state(state)
   end
 
   before do

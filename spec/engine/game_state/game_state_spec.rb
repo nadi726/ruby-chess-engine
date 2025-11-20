@@ -382,7 +382,8 @@ RSpec.describe GameState do
                               CastlingSides[true, false],
                               CastlingSides.none
                             ],
-            halfmove_clock: 2
+            halfmove_clock: 2,
+            fullmove_number: 30
           ]
 
           alt_position = base_position.with(current_color: :black)

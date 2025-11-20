@@ -87,7 +87,8 @@ class GameState
       current_color: @position.other_color,
       en_passant_target: compute_en_passant(event),
       castling_rights: compute_castling_rights(event),
-      halfmove_clock: compute_halfmove_clock(event)
+      halfmove_clock: compute_halfmove_clock(event),
+      fullmove_number: compute_fullmove_number
     )
   rescue InvalidEventError; raise
   rescue InvariantViolationError => e
@@ -184,5 +185,10 @@ class GameState
                   event.is_a?(EnPassantEvent)
 
     reset_clock ? 0 : @position.halfmove_clock + 1
+  end
+
+  def compute_fullmove_number
+    increment = @position.current_color == :black ? 1 : 0
+    @position.fullmove_number + increment
   end
 end

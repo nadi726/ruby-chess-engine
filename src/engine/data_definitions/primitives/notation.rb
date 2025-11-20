@@ -75,7 +75,7 @@ module CoreNotation
   def castling_rights_to_str(rights)
     raise ArgumentError, "Not a CastlingRights: #{rights}" unless rights.is_a?(CastlingRights)
 
-    CASTLING_MAP.reduce('') do |result, (color_side, char)|
+    result = CASTLING_MAP.reduce('') do |result, (color_side, char)|
       color, side = color_side
       if rights.sides(color).side?(side)
         result + char
@@ -83,6 +83,8 @@ module CoreNotation
         result
       end
     end
+
+    result.empty? ? '-' : result
   end
 
   def str_to_castling_rights(str)

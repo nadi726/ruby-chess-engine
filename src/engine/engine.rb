@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 # Core components
+require_relative 'data_definitions/position'
 require_relative 'game_state/game_state'
 require_relative 'event_handlers/init'
 require_relative 'parsers/base_parser'
@@ -47,21 +48,16 @@ class Engine # rubocop:disable Metrics/ClassLength
 
   # Starts a new game. Resets the game's state and starts a new session.
   def new_game
-    update_game(
-      state: GameState.start,
-      endgame_status: nil, # nil for an ongoing game, `GameOutcome` for a concluded game
-      offered_draw: nil, # color of whoever currently offers a draw, or nil if no draw is being offered
-      event: nil, # the last event that was applied
-      session: @session.nil? ? SessionInfo.started(0) : @session.next # the current session
-    )
+    load_game_state(GameState.start)
   end
 
-  def from_fen(fen_str, parser: nil)
-    # TODO
+  def from_fen(fen_str)
+    position = Position.from_fen(fen_str)
+    load_game_state(GameState.load(position))
   end
 
   def to_fen
-    # TODO
+    @state.position.to_fen
   end
 
   # The last update that was made.
@@ -217,17 +213,15 @@ class Engine # rubocop:disable Metrics/ClassLength
   # Convenience accessor
   def query = @state&.query
 
-  # Allows controlled creation from arbitrary state.
-  # Used by test suites and FEN importers only.
-  private_class_method def self.__from_raw_state(state, parser: nil, endgame_status: nil, offered_draw: nil)
-    engine = allocate # skips initialize
-    engine.instance_variable_set(:@state, state)
-    engine.instance_variable_set(:@parser, parser)
-    engine.instance_variable_set(:@endgame_status, endgame_status)
-    engine.instance_variable_set(:@offered_draw, offered_draw)
-    engine.instance_variable_set(:@listeners, [])
-    engine.instance_variable_set(:@session, SessionInfo.started(-1))
-    engine
+  # Starts a new game session with the given state.
+  def load_game_state(state, offered_draw: nil)
+    update_game(
+      state: state,
+      endgame_status: detect_endgame_status(state.query),
+      offered_draw: offered_draw,
+      event: nil,
+      session: @session.nil? ? SessionInfo.started(0) : @session.next
+    )
   end
 end
 
