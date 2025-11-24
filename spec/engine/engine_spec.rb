@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'engine'
+require 'parsers/identity_parser'
 
 # Checks that the `GameUpdate`’s board matches the expected board.
 RSpec::Matchers.define :have_board do |board|
@@ -11,14 +12,14 @@ end
 
 # Helper for tests only — bypasses `Engine`’s public constructor to inject arbitrary game states.
 def engine_from_state(state, offered_draw: nil)
-  engine = Engine.new(IdentityParser.new)
+  engine = Engine.new(IdentityParser)
   engine.send(:load_game_state, state, offered_draw: offered_draw)
   engine
 end
 
 RSpec.describe Engine do
   let(:listener) { spy('listener') }
-  subject(:engine) { described_class.new(IdentityParser.new) }
+  subject(:engine) { described_class.new(IdentityParser) }
   subject(:ended_game_engine) do
     board = fill_board(
       [

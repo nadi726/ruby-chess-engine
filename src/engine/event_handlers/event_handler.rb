@@ -61,7 +61,7 @@ class EventHandler
 
   # Runs a series of resolution steps in order.
   # Stops when out of steps, or when result doesn't match the specified condition.
-  # By default, the condition is for `result` to be succesful.
+  # By default, the condition is for `result` to be successful.
   # You can set custom stop conditions for specific steps using `stop_conditions`.
   #
   # `steps`: a series of method names on `self` to execute. Each step takes the event and returns an `EventResult`.

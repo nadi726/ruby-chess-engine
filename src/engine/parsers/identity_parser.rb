@@ -7,7 +7,7 @@ require_relative '../data_definitions/events'
 # Used primarily for testing, as it bypasses actual notation parsing
 # and assumes the input is already valid.
 class IdentityParser < BaseParser
-  def parse(notation, _game_query)
+  def self.call(notation, _game_query)
     return nil unless notation.is_a?(GameEvent)
 
     notation

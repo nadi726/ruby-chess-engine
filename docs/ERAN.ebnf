@@ -1,0 +1,43 @@
+/*
+   ERAN — Explicit Readable Algebraic Notation for Chess.
+   All tokens are case-insensitive (Pawn = PAWN = pawn, CK = ck, >Q = >q, …).
+   Written in pure W3C EBNF.
+*/
+
+
+move ::= regular_move | special_move
+
+
+/* ── REGULAR MOVES ─────────────────────────────────────── */
+regular_move ::= piece S movement (S promotion)?
+
+/* piece */
+piece ::= short_piece | long_piece
+short_piece ::= [pnbrqk]
+long_piece ::= ("pawn" | "rook" | "knight" | "bishop" | "queen" | "king")
+
+/* movement */
+movement ::= from move_type to
+from ::= square
+move_type ::= silent_move | capture
+to ::= square
+
+square ::= [a-h] [1-8]
+silent_move ::= "-"
+capture ::= "x" | "X"
+
+/* promotion */
+promotion ::= ("->" | ">")  promotion_piece
+promotion_piece ::= [qrbn] | ("rook" | "knight" | "bishop" | "queen")
+
+/* ── SPECIAL MOVES ─────────────────────────────────────── */
+special_move ::= castling | en_passant
+
+castling ::= kingside_castling | queenside_castling
+kingside_castling ::= "ck" | "castling-kingside"
+queenside_castling ::= "cq" | "castling-queenside"
+
+en_passant ::= "ep" | "en-passant"
+
+/* ── MISC ────────────────────────────────────────── */
+S ::= [ \t]+ /* one or more spaces or tabs */

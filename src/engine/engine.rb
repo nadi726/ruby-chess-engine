@@ -5,15 +5,15 @@ require_relative 'data_definitions/position'
 require_relative 'game_state/game_state'
 require_relative 'event_handlers/init'
 require_relative 'parsers/base_parser'
-require_relative 'parsers/identity_parser'
+require_relative 'parsers/eran_parser'
 
 # The `Engine` is the central coordinator and interpreter of the chess game.
 #
 # It interprets structured input (chess notation) and translates it into concrete
 # state transitions, producing `GameUpdate` objects and notifying registered listeners.
 #
-# The engine is resposible for a single game session at a time.
-# On initiazlition, you must choose the notation parser the engine will use (or use the default one).
+# The engine is responsible for a single game session at a time.
+# On initialization, you must choose the notation parser the engine will use (or use the default one).
 #
 # After initializing an engine, you must begin a session either by:
 # - starting a new game with `#new_game`
@@ -31,13 +31,15 @@ require_relative 'parsers/identity_parser'
 #   as well as error messages(a `GameUpdate.failure` object) for an invalid client operation.
 # - call the `#last_update` method to get the last game update status.
 class Engine # rubocop:disable Metrics/ClassLength
-  DEFAULT_PARSER = IdentityParser.new.freeze
+  DEFAULT_PARSER = ERANParser
 
-  def initialize(parser = nil)
-    raise ArgumentError, "Not a valid `Parser`: #{parser}" unless parser.nil? || parser.is_a?(BaseParser)
+  def initialize(default_parser = nil)
+    unless default_parser.nil? || default_parser.respond_to?(:call)
+      raise ArgumentError, "Not a valid `Parser`: #{default_parser}"
+    end
 
-    @parser = parser || DEFAULT_PARSER
     @listeners = []
+    @default_parser = default_parser || DEFAULT_PARSER
   end
 
   def add_listener(listener)
@@ -45,6 +47,12 @@ class Engine # rubocop:disable Metrics/ClassLength
   end
 
   def remove_listener(listener) = @listeners.delete(listener)
+
+  def default_parser(parser)
+    raise ArgumentError, "Not a valid `Parser`: #{default_parser}" unless parser.respond_to?(:call)
+
+    @default_parser = parser
+  end
 
   # Starts a new game. Resets the game's state and starts a new session.
   def new_game
@@ -71,8 +79,8 @@ class Engine # rubocop:disable Metrics/ClassLength
   # updates the engine’s state, and notifies listeners with a `GameUpdate`.
   #
   # Returns a corresponding `GameUpdate`.
-  def play_turn(notation)
-    result = interpret_turn notation
+  def play_turn(notation, parser = @default_parser)
+    result = interpret_turn(notation, parser)
     result.success? ? update_game(**result.success_attributes) : notify_listeners(result)
     result
   end
@@ -119,24 +127,16 @@ class Engine # rubocop:disable Metrics/ClassLength
 
   # Interprets a move notation through all internal processing stages.
   # If valid, advances the engine state; Returns a `GameUpdate`.
-  def interpret_turn(notation)
+  def interpret_turn(notation, parser)
     failure = detect_general_failure
     return failure unless failure.nil?
 
-    event = parse_notation(notation)
+    event = parser.call(notation, @state.query)
     return GameUpdate.failure(:invalid_notation) unless event
 
     interpret_event(event)
   rescue InvariantViolationError => e
     raise InternalEngineError, "The engine encountered a problem: #{e}"
-  end
-
-  # Parses notation into an abstract chess event.
-  #
-  # The resulting event is not necessarily valid in game context,
-  # only syntactically valid. Returns `nil` if parsing fails.
-  def parse_notation(notation)
-    @parser.parse(notation, @state.query)
   end
 
   # Executes a given event.
@@ -234,7 +234,7 @@ end
 # - The current draw offer status.
 # - Metadata about the current game session.
 #
-# On failure, containts only `error`, which is one of:
+# On failure, contains only `error`, which is one of:
 # - `:invalid_notation`
 # - `:invalid_event`
 # - `:game_already_ended`

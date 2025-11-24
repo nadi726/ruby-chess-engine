@@ -2,7 +2,7 @@
 
 require 'event_handlers/castling_event_handler'
 
-RSpec.describe CastlingEvent do
+RSpec.describe CastlingEventHandler do
   let(:board) do
     fill_board([
                  [Piece[:white, :rook], Square[:a, 1]],

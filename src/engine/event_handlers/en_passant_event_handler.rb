@@ -25,7 +25,7 @@ class EnPassantEventHandler < EventHandler
 
   def resolve_to(event)
     return failure(":to is not a Square: #{event.to}") unless event.to.is_a?(Square)
-    return failure("Cannot en passsant to #{event.to}") unless event.to.matches?(en_passant_target)
+    return failure("Cannot en passant to #{event.to}") unless event.to.matches?(en_passant_target)
 
     success(event.with(to: en_passant_target))
   end

@@ -100,7 +100,7 @@ module CoreNotation
       rights = rights.with(color => sides)
 
       # Remove all characters up to and including the found character
-      # Prevents repeating characters and incorect char order
+      # Prevents repeating characters and incorrect char order
       allowed_chars = allowed_chars.drop_while { |c| c != char }.drop(1)
     end
 
