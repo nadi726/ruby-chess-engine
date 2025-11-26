@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'data_definitions/square'
-
 # Expects a space-separated string of squares (e.g., 'a1 d6')
 # And returns an array of `Square` objects
 def parse_squares(squares)
@@ -51,6 +49,6 @@ RSpec::Matchers.define :be_a_failed_handler_result do
   match(&:failure?)
 
   failure_message do |result|
-    "expected failure, but got success. proccesed: #{result.event} "
+    "expected failure, but got success. processed: #{result.event} "
   end
 end

@@ -2,17 +2,11 @@
 
 source 'https://rubygems.org'
 
-# gem "rails"
+gemspec
 
-gem 'rspec', '~> 3.13'
-gem 'rubocop', '~> 1.74'
-
-gem 'ice_nine', '~> 0.11.2'
-
-gem 'debug' # , require: false
-
-gem 'immutable-ruby', '~> 0.2.0'
-
-gem 'wholeable', '~> 1.4'
-
-gem 'solargraph', '~> 0.57.0', group: :development
+group :development do
+  gem 'debug'
+  gem 'rspec', '~> 3.13'
+  gem 'rubocop', '~> 1.74'
+  gem 'solargraph', '~> 0.57.0'
+end

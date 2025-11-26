@@ -1,10 +1,8 @@
 # frozen_string_literal: true
 
-require 'game_state/game_state'
-
 module StartState
   def start_state
-    @start_state ||= GameState.start
+    @start_state ||= ChessEngine::Game::State.start
   end
 
   def start_position
