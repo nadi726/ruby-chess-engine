@@ -16,6 +16,7 @@ module ChessEngine
   autoload :EventHandlers, 'chess_engine/event_handlers/init'
   autoload :Game, 'chess_engine/game/init'
   autoload :Parsers, 'chess_engine/parsers/init'
+  autoload :Formatters, 'chess_engine/formatters/init'
 
   # --- Data Definitions ---
   autoload :Piece, 'chess_engine/data_definitions/piece'
