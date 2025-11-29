@@ -9,10 +9,10 @@ module ChessEngine
   # The output must be a valid notation for a single move that accurately reflects the given event.
   #
   # It expects the event to be structurally valid:
-  # all fields and nested objects must be well-formed, but the move need not be
-  # legal in any particular game state.
+  # all fields and nested objects must be well-formed.
+  # Certain formatters and notations might also require the move to be valid under the game context.
   #
-  # Each formatter should implement `.call(event)`, returning the corresponding notation,
+  # Each formatter should implement `.call(event, game_query)`, returning the corresponding notation,
   #  or `nil` if the event cannot be parsed.
   module Formatters
   end

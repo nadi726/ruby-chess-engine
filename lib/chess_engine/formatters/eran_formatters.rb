@@ -61,8 +61,8 @@ module ChessEngine
       private :format, :format_move_piece_event
 
       # The actual formatters
-      LONG = ->(event) { format(event, :long) }
-      SHORT = ->(event) { format(event, :short) }
+      LONG = ->(event, _query = nil) { format(event, :long) }
+      SHORT = ->(event, _query = nil) { format(event, :short) }
     end
 
     ERANLongFormatter = ERANFormatters::LONG
