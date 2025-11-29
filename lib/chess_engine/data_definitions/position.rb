@@ -53,7 +53,9 @@ module ChessEngine
 
   # Converts between `Position` and FEN.
   module FENConverter
-    def self.from_fen(str)
+    extend self
+
+    def from_fen(str)
       arr = str.split
       raise ArgumentError, 'Not a valid FEN' unless arr.size == 6
 
@@ -78,7 +80,7 @@ module ChessEngine
       ]
     end
 
-    def self.to_fen(pos)
+    def to_fen(pos)
       board_str = board_to_fen(pos.board)
       color_str = pos.current_color == :white ? 'w' : 'b'
       castling_rights_str = CoreNotation.castling_rights_to_str(pos.castling_rights)
@@ -87,7 +89,9 @@ module ChessEngine
       "#{board_str} #{color_str} #{castling_rights_str} #{en_passant_target_str} #{pos.halfmove_clock} #{pos.fullmove_number}"
     end
 
-    def self.fen_to_board(str)
+    private
+
+    def fen_to_board(str)
       board_array = str.split('/').reverse.map do |row|
         row.chars.map do |piece|
           if ('1'..'8').include?(piece)
@@ -100,25 +104,27 @@ module ChessEngine
       Board.from_flat_array(board_array.flatten)
     end
 
-    def self.board_to_fen(board)
-      board_str = ''
-      (Board::SIZE - 1).downto(0) do |row|
-        row_str = ''
-        nil_count = 0
-        Board::SIZE.times.each do |col|
-          piece = board.get(Square.from_index(row, col))
-          if piece.nil?
-            nil_count += 1
-          else
-            row_str += nil_count.to_s unless nil_count.zero?
-            row_str += CoreNotation.piece_to_str(piece)
-            nil_count = 0
-          end
-        end
-        row_str += nil_count.to_s unless nil_count.zero?
-        board_str += "/#{row_str}"
+    def board_to_fen(board)
+      ranks = board.each_rank.map do |rank|
+        rank_to_fen(rank)
       end
-      board_str[1..] # remove leading slash
+      ranks.reverse.join('/')
+    end
+
+    def rank_to_fen(rank)
+      rank_str = ''
+      nil_count = 0
+      rank.each do |piece|
+        if piece.nil?
+          nil_count += 1
+        else
+          rank_str += nil_count.to_s unless nil_count.zero?
+          rank_str += CoreNotation.piece_to_str(piece)
+          nil_count = 0
+        end
+      end
+      rank_str += nil_count.to_s unless nil_count.zero?
+      rank_str
     end
   end
 end

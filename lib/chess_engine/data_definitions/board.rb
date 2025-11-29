@@ -79,6 +79,32 @@ module ChessEngine
       pieces_with_squares(color: color, type: type).map(&:first)
     end
 
+    def each_square_content(&)
+      return enum_for(__method__) unless block_given?
+
+      SIZE.times do |row|
+        SIZE.times do |col|
+          yield @array.get((row * SIZE) + col)
+        end
+      end
+    end
+
+    def each_rank(&)
+      return enum_for(__method__) unless block_given?
+
+      SIZE.times do |row|
+        yield SIZE.times.map { |col| @array.get((row * SIZE) + col) }
+      end
+    end
+
+    def each_file(&)
+      return enum_for(__method__) unless block_given?
+
+      SIZE.times do |col|
+        yield SIZE.times.map { |row| @array.get((row * SIZE) + col) }
+      end
+    end
+
     ######## Manipulation
 
     def move(from, to)
