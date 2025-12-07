@@ -3,8 +3,8 @@
 require 'bundler/setup'
 require 'chess_engine_rb'
 
-# A simple CLI for playing chess using the engine
-class SimpleChessCli
+# A CLI for playing chess using the engine
+class ChessCli
   def initialize
     @engine = ChessEngine::Engine.new(default_parser: ChessEngine::Parsers::ERANParser)
     @engine.add_listener(self)
@@ -15,7 +15,7 @@ class SimpleChessCli
 
   def start
     Console.welcome_screen
-    select_session
+    setup_game
     play_turn until game_over?
     end_game
   end
@@ -35,6 +35,24 @@ class SimpleChessCli
   end
 
   private
+
+  def setup_game
+    select_piece_rendering
+    select_session
+  end
+
+  def select_piece_rendering
+    Console.mode_selection_screen
+    mode_choice = Console.input('>>> ').strip
+    case mode_choice
+    when '1', ''
+      Pieces.use_ascii!
+    when '2'
+      Pieces.use_unicode!
+    else
+      select_piece_rendering
+    end
+  end
 
   def select_session
     Console.session_selection_screen
@@ -101,10 +119,6 @@ module Console # rubocop:disable Metrics/ModuleLength
   SQR_WIDTH = 7
 
   BLANK = (' ' * 7)
-  PIECES = {
-    black: { pawn: '♟', knight: '♞', bishop: '♝', rook: '♜', queen: '♛', king: '♚' },
-    white: { pawn: '♙', knight: '♘', bishop: '♗', rook: '♖', queen: '♕', king: '♔' }
-  }.freeze
 
   # Colors
   BG_LIGHT = "\e[48;5;180m"
@@ -137,7 +151,7 @@ module Console # rubocop:disable Metrics/ModuleLength
       ██        ▐/////////////////////////////////////////////////////////▌         ██
       ██        ▐/////////////////////////////////////////////////////////▌         ██
       ██        ▐▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▌         ██
-      ██           A simple Chess CLI                                               ██
+      ██           A CLI for playing chess                                          ██
       ██                                                                            ██
       ██                                                                            ██
       ██                                                                            ██
@@ -197,16 +211,25 @@ module Console # rubocop:disable Metrics/ModuleLength
     gets
   end
 
-  def session_selection_screen
-    clear
+  def mode_selection_screen
+    selection_screen
     puts <<~HEREDOC
-      ================================================================================
-      ================================== Game Setup ==================================
-      ================================================================================
+      Display mode:
+        1) ASCII (default, recommended for Windows)
+        2) Unicode
 
+      Enter 1 or 2 (ENTER for default):
+
+    HEREDOC
+  end
+
+  def session_selection_screen
+    selection_screen
+    puts "Display mode: #{Pieces.current_mode == :ascii ? 'ASCII' : 'Unicode'}"
+    puts
+    puts <<~HEREDOC
       Enter a FEN string to load an existing game.
       Leave empty and press <ENTER> to start a new game.
-
     HEREDOC
   end
 
@@ -305,7 +328,7 @@ module Console # rubocop:disable Metrics/ModuleLength
                          BLANK
                        else
                          fg = p.color == :white ? FG_WHITE_PIECE : FG_BLACK_PIECE
-                         piece_symbol = wrap_str(PIECES[:black][p.type], fg, bg)
+                         piece_symbol = wrap_str(Pieces.board_display(p.color, p.type), fg, bg)
                          wrap_str(piece_symbol, ' ' * (SQR_WIDTH / 2))
                        end
 
@@ -341,7 +364,7 @@ module Console # rubocop:disable Metrics/ModuleLength
                        else
                          pieces.tally.map do |piece, count|
                            count_str = count == 1 ? '' : " ×#{count}"
-                           "#{PIECES[color][piece]}#{count_str}"
+                           "#{Pieces.get(color, piece)}#{count_str}"
                          end.join(' ')
                        end)
     end.join(' | ')
@@ -384,6 +407,16 @@ module Console # rubocop:disable Metrics/ModuleLength
     end
   end
 
+  def selection_screen
+    clear
+    puts <<~HEREDOC
+      ================================================================================
+      ================================== Game Setup ==================================
+      ================================================================================
+
+    HEREDOC
+  end
+
   def end_screen(title, board)
     clear
     pcenter('', '=')
@@ -396,4 +429,47 @@ module Console # rubocop:disable Metrics/ModuleLength
   end
 end
 
-SimpleChessCli.new.start if __FILE__ == $PROGRAM_NAME
+# Maps symbols to characters and allows switching between ASCII letters and unicode piece chars
+class Pieces
+  ASCII_PIECES = {
+    black: { pawn: 'p', knight: 'n', bishop: 'b', rook: 'r', queen: 'q', king: 'k' }.freeze,
+    white: { pawn: 'P', knight: 'N', bishop: 'B', rook: 'R', queen: 'Q', king: 'K' }.freeze
+  }.freeze
+
+  UNICODE_PIECES = {
+    black: { pawn: '♟', knight: '♞', bishop: '♝', rook: '♜', queen: '♛', king: '♚' }.freeze,
+    white: { pawn: '♙', knight: '♘', bishop: '♗', rook: '♖', queen: '♕', king: '♔' }.freeze
+  }.freeze
+
+  @current_mode = :ascii
+  @pieces = ASCII_PIECES
+
+  class << self
+    attr_reader :current_mode
+
+    # Switch rendering to ASCII
+    def use_ascii!
+      @current_mode = :ascii
+      @pieces = ASCII_PIECES
+    end
+
+    # Switch rendering to Unicode
+    def use_unicode!
+      @current_mode = :unicode
+      @pieces = UNICODE_PIECES
+    end
+
+    # Get the board display for the piece, which, for unicode,
+    # uses the full(black) symbol for better visibility
+    def board_display(color, type)
+      color = :black if @current_mode == :unicode
+      get(color, type)
+    end
+
+    def get(color, type)
+      @pieces[color][type]
+    end
+  end
+end
+
+ChessCli.new.start if __FILE__ == $PROGRAM_NAME
