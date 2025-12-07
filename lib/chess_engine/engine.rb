@@ -33,13 +33,11 @@ module ChessEngine
   class Engine # rubocop:disable Metrics/ClassLength
     DEFAULT_PARSER = Parsers::ERANParser
 
-    def initialize(default_parser = nil)
-      unless default_parser.nil? || default_parser.respond_to?(:call)
-        raise ArgumentError, "Not a valid `Parser`: #{default_parser}"
-      end
+    def initialize(default_parser: DEFAULT_PARSER)
+      raise ArgumentError, "Not a valid `Parser`: #{default_parser}" unless default_parser.respond_to?(:call)
 
       @listeners = []
-      @default_parser = default_parser || DEFAULT_PARSER
+      @default_parser = default_parser
     end
 
     def add_listener(listener)
@@ -271,8 +269,13 @@ module ChessEngine
     end
 
     def game_ended? = !endgame_status.nil?
-    def game_query = state.query
     def in_check? = game_query.in_check?
+    def can_draw? = game_query.can_draw?
+
+    def game_query = state.query
+    def position = state.position
+    def board = position.board
+    def current_color = position.current_color
 
     private_class_method :new # enforces use of factories
   end

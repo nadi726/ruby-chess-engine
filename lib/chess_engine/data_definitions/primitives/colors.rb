@@ -16,7 +16,8 @@ module ChessEngine
       end
     end
 
-    alias other flip
+    # Alias
+    def other(color) = flip(color)
 
     def valid?(color) = COLORS.include?(color)
     def each(&) = COLORS.each(&)

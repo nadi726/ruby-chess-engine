@@ -115,6 +115,9 @@ module ChessEngine
         CastlingData.rook_to(color, side)
       end
 
+      # For compatibility with the other events
+      def captured = nil
+
       def with(color: self.color, side: self.side, assertions: self.assertions)
         self.class.new(color, side, assertions: assertions)
       end
