@@ -8,14 +8,15 @@ require_relative 'primitives/colors'
 require_relative 'primitives/castling_data'
 
 module ChessEngine
+  # Events are immutable records representing game actions or state changes.
+  # They are produced by the parser (user intent) and by the engine (execution outcome).
+  #
+  # The parser may generate incomplete events.
+  # The event handler **must** populate all *required* fields, but **must not** populate *optional* fields.
+  #
+  # **NOTE:** The declaration of a field as optional is made explicitly within the event subclass definition.
   module Events
-    # Events are immutable records representing game actions or state changes.
-    # They are produced by the parser (user intent) and by the engine (execution outcome).
-    #
-    # The parser may generate incomplete events.
-    # The event handler **must** populate all *required* fields, but **must not** populate *optional* fields.
-    #
-    # **NOTE:** The declaration of a field as optional is made explicitly within the event subclass definition.
+    # Base class for all events
     class BaseEvent
       include Wholeable[:assertions]
 

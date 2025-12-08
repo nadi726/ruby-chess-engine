@@ -16,8 +16,8 @@ module ChessEngine
   # On initialization, you must choose the notation parser the engine will use (or use the default one).
   #
   # After initializing an engine, you must begin a session either by:
-  # - starting a new game with `#new_game`
-  # - loading a game from existing state with `#from_fen`
+  # - starting a new game with `#new_game`.
+  # - loading a game from existing state with `#from_fen` or `#load_game_state`.
   #
   # The game can be exported at any point with `#to_fen`.
   #
@@ -57,6 +57,18 @@ module ChessEngine
       load_game_state(Game::State.start)
     end
 
+    # Starts a new game session with the given state.
+    # A lower-level operation - use with caution.
+    def load_game_state(state, offered_draw: nil)
+      update_game(
+        state: state,
+        endgame_status: detect_endgame_status(state.query),
+        offered_draw: offered_draw,
+        event: nil,
+        session: @session.nil? ? SessionInfo.started(0) : @session.next
+      )
+    end
+
     def from_fen(fen_str)
       position = Position.from_fen(fen_str)
       load_game_state(Game::State.load(position))
@@ -70,6 +82,7 @@ module ChessEngine
     # Useful for directly retrieving the most recent `GameUpdate`,
     # allowing inspection of game state changes without engaging with the listener model.
     attr_reader :last_update
+    alias status last_update
 
     # Plays one side’s turn.
     #
@@ -210,86 +223,77 @@ module ChessEngine
 
     # Convenience accessor
     def query = @state&.query
-
-    # Starts a new game session with the given state.
-    def load_game_state(state, offered_draw: nil)
-      update_game(
-        state: state,
-        endgame_status: detect_endgame_status(state.query),
-        offered_draw: offered_draw,
-        event: nil,
-        session: @session.nil? ? SessionInfo.started(0) : @session.next
-      )
-    end
   end
 
-  # Represents the outcome of a change in the state of the game, like playing a turn or accepting a draw.
-  #
-  # On success, it contains:
-  # - The event that describes what happened.
-  # - The full `Game::State` and `Game::Query` for inspection.
-  # - The current endgame status (if any).
-  # - The current draw offer status.
-  # - Metadata about the current game session.
-  #
-  # On failure, contains only `error`, which is one of:
-  # - `:invalid_notation`
-  # - `:invalid_event`
-  # - `:game_already_ended`
-  # - `:no_ongoing_session`
-  # - `:draw_offer_not_allowed`
-  # - `:draw_accept_not_allowed`
-  # - `:draw_claim_not_allowed`
-  #
-  # Note: `error` may later be replaced with a structured object to support
-  # more detailed error handling.
-  #
-  # Typically, clients should rely on the event sequence and status fields;
-  # direct access to `Game::Query` is for specialized use cases.
-  GameUpdate = Data.define(:event, :state, :endgame_status, :offered_draw, :session, :error) do
-    def success? = error.nil?
-    def failure? = !success?
+  class Engine
+    # Represents the outcome of a change in the state of the game, like playing a turn or accepting a draw.
+    #
+    # On success, it contains:
+    # - The event that describes what happened.
+    # - The full `Game::State` and `Game::Query` for inspection.
+    # - The current endgame status (if any).
+    # - The current draw offer status.
+    # - Metadata about the current game session.
+    #
+    # On failure, contains only `error`, which is one of:
+    # - `:invalid_notation`
+    # - `:invalid_event`
+    # - `:game_already_ended`
+    # - `:no_ongoing_session`
+    # - `:draw_offer_not_allowed`
+    # - `:draw_accept_not_allowed`
+    # - `:draw_claim_not_allowed`
+    #
+    # Note: `error` may later be replaced with a structured object to support
+    # more detailed error handling.
+    #
+    # Typically, clients should rely on the event sequence and status fields;
+    # direct access to `Game::Query` is for specialized use cases.
+    GameUpdate = Data.define(:event, :state, :endgame_status, :offered_draw, :session, :error) do
+      def success? = error.nil?
+      def failure? = !success?
 
-    def self.success(event:, state:, endgame_status:, offered_draw:, session:)
-      new(event, state, endgame_status, offered_draw, session, nil)
+      def self.success(event:, state:, endgame_status:, offered_draw:, session:)
+        new(event, state, endgame_status, offered_draw, session, nil)
+      end
+
+      def self.failure(error)
+        new(nil, nil, nil, nil, nil, error)
+      end
+
+      # A successful result has no `error` field
+      def success_attributes
+        to_h.except(:error)
+      end
+
+      # A failed result has only an `error` field
+      def failure_attributes
+        { error: error }
+      end
+
+      def game_ended? = !endgame_status.nil?
+      def in_check? = game_query.in_check?
+      def can_draw? = game_query.can_draw?
+
+      def game_query = state.query
+      def position = state.position
+      def board = position.board
+      def current_color = position.current_color
+
+      private_class_method :new # enforces use of factories
     end
 
-    def self.failure(error)
-      new(nil, nil, nil, nil, nil, error)
+    # Metadata about the current game session
+    SessionInfo = Data.define(:id, :new?) do
+      def self.ongoing(id) = new(id, false)
+      def self.started(id) = new(id, true)
+      def next = self.class.started(id + 1)
+      def current = self.class.ongoing(id)
     end
 
-    # A successful result has no `error` field
-    def success_attributes
-      to_h.except(:error)
-    end
-
-    # A failed result has only an `error` field
-    def failure_attributes
-      { error: error }
-    end
-
-    def game_ended? = !endgame_status.nil?
-    def in_check? = game_query.in_check?
-    def can_draw? = game_query.can_draw?
-
-    def game_query = state.query
-    def position = state.position
-    def board = position.board
-    def current_color = position.current_color
-
-    private_class_method :new # enforces use of factories
+    # winner is one of: :white, :black, :draw
+    # cause is one of: :checkmate, :resignation, :agreement, :stalemate, :insufficient_material, :fivefold_repetition,
+    #                  :threefold_repetition, :fifty_move
+    GameOutcome = Data.define(:winner, :cause)
   end
-
-  # Metadata about the current game session
-  SessionInfo = Data.define(:id, :new?) do
-    def self.ongoing(id) = new(id, false)
-    def self.started(id) = new(id, true)
-    def next = self.class.started(id + 1)
-    def current = self.class.ongoing(id)
-  end
-
-  # winner is one of: :white, :black, :draw
-  # cause is one of: :checkmate, :resignation, :agreement, :stalemate, :insufficient_material, :fivefold_repetition,
-  #                  :threefold_repetition, :fifty_move
-  GameOutcome = Data.define(:winner, :cause)
 end

@@ -9,14 +9,17 @@ end
 
 # Helper for tests only — bypasses `Engine`’s public constructor to inject arbitrary game states.
 def engine_from_state(state, offered_draw: nil)
-  engine = Engine.new(Parsers::IdentityParser)
+  engine = Engine.new(default_parser: Parsers::IdentityParser)
   engine.send(:load_game_state, state, offered_draw: offered_draw)
   engine
 end
 
+GameUpdate = Engine::GameUpdate
+GameOutcome = Engine::GameOutcome
+
 RSpec.describe Engine do
   let(:listener) { spy('listener') }
-  subject(:engine) { described_class.new(Parsers::IdentityParser) }
+  subject(:engine) { described_class.new(default_parser: Parsers::IdentityParser) }
   subject(:ended_game_engine) do
     board = fill_board(
       [

@@ -9,8 +9,14 @@ Gem::Specification.new do |spec|
   spec.summary       = 'A UI-agnostic, event-driven, mostly-immutable chess engine written in pure Ruby.'
   spec.description = begin
     File.open(File.join(__dir__, 'README.md')) do |readme|
-      readme.gets('') # heading
-      readme.gets('').chomp
+      readme.gets # heading
+      content = []
+      readme.each_line do |line|
+        break if line.start_with?('#')
+
+        content << line
+      end
+      content.join
     end
   rescue StandardError
     spec.summary

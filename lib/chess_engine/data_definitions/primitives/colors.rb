@@ -21,6 +21,6 @@ module ChessEngine
 
     def valid?(color) = COLORS.include?(color)
     def each(&) = COLORS.each(&)
-    def to_s(color) = color.to_s.capitalize
+    def to_string(color) = color.to_s.capitalize
   end
 end
