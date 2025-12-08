@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |spec|
   spec.name          = 'chess_engine_rb'
-  spec.version       = '0.1.0'
+  spec.version       = '0.1.1'
   spec.authors       = ['nadi726']
   spec.email         = ['16650084+nadi726@users.noreply.github.com']
 
