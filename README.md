@@ -2,7 +2,7 @@
 A modular, deterministic chess engine built around immutable objects.
 Cleanly expresses chess concepts in code and designed for easy integration with any UI.
 
-> ⚠️ Note: This is not a competitive chess engine like Stockfish.
+> ⚠️ Note: This is not a competitive chess engine like [Stockfish](https://stockfishchess.org/).
 While AI features could be added in the future, the core purpose of this project is to provide a ruby gem for cleanly representing chess in code.
 
 # Features
@@ -75,6 +75,7 @@ For more complete examples, see the examples folder.
 - Move undo
 - SAN and LAN parsers/formatters
 - PGN import/export
+- Support for chess variants
 - Performance improvements
 - Comprehensive perft testing
 - Basic AI

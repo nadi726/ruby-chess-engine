@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    chess_engine_rb (0.1.0)
+    chess_engine_rb (0.1.1)
       immutable-ruby (~> 0.2.0)
       wholeable (~> 1.4)
 

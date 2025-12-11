@@ -49,8 +49,8 @@ Use this as a navigation index; detailed explanations live in the code comments.
 - `CoreNotation`  
 
 ## 5. Internal errors
-- `Errors::InvariantViolation`  
-- `Errors::InvalidEvent`  
-- `Errors::BoardManipulation`  
-- `Errors::InvalidSquare`  
-- `Errors::Internal`  
+- `Errors::InvariantViolationError`  
+- `Errors::InvalidEventError`  
+- `Errors::BoardManipulationError`  
+- `Errors::InvalidSquareError`  
+- `Errors::InternalError`  
